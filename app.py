@@ -2160,6 +2160,95 @@ def validate_formation():
         'hasAB': has_ab
     })
 
+# ============ 版本管理路由 ============
+import subprocess, os as _os
+
+_VERSION_REPO = _os.path.dirname(_os.path.abspath(__file__))
+
+@app.route('/version')
+def version_page():
+    """版本管理页面"""
+    return render_template('version.html')
+
+@app.route('/api/version/log')
+def version_log():
+    """获取 Git 提交历史"""
+    try:
+        result = subprocess.run(
+            ['git', 'log', '--pretty=format:%H|%an|%ae|%ad|%s', '--date=short', '--all'],
+            cwd=_VERSION_REPO, capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            return jsonify({'success': False, 'error': result.stderr})
+        commits = []
+        for line in result.stdout.strip().split('\n'):
+            if not line:
+                continue
+            parts = line.split('|', 4)
+            if len(parts) == 5:
+                commits.append({
+                    'hash': parts[0][:7],
+                    'full_hash': parts[0],
+                    'author': parts[1],
+                    'email': parts[2],
+                    'date': parts[3],
+                    'message': parts[4]
+                })
+        head = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'],
+                             cwd=_VERSION_REPO, capture_output=True, text=True)
+        return jsonify({'success': True, 'commits': commits, 'head': head.stdout.strip()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/version/diff/<commit_hash>')
+def version_diff(commit_hash):
+    """查看某次提交的 diff"""
+    try:
+        result = subprocess.run(
+            ['git', 'show', '--stat', commit_hash],
+            cwd=_VERSION_REPO, capture_output=True, text=True, timeout=10
+        )
+        return jsonify({'success': True, 'diff': result.stdout})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/version/rollback', methods=['POST'])
+def version_rollback():
+    """回滚到指定 commit（需密码确认）"""
+    data = request.get_json()
+    commit_hash = data.get('commit_hash', '').strip()
+    password = data.get('password', '').strip()
+    if password != '334dengni':
+        return jsonify({'success': False, 'error': '密码错误'})
+    if not commit_hash:
+        return jsonify({'success': False, 'error': '缺少 commit_hash'})
+    try:
+        subprocess.run(['git', 'add', '-A'], cwd=_VERSION_REPO, capture_output=True)
+        subprocess.run(['git', 'stash'], cwd=_VERSION_REPO, capture_output=True)
+        result = subprocess.run(
+            ['git', 'checkout', commit_hash],
+            cwd=_VERSION_REPO, capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            subprocess.run(['git', 'stash', 'pop'], cwd=_VERSION_REPO, capture_output=True)
+            return jsonify({'success': False, 'error': result.stderr})
+        return jsonify({'success': True, 'message': f'已回滚到 {commit_hash[:7]}'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/version/restore_head', methods=['POST'])
+def version_restore_head():
+    """恢复到最新版本"""
+    try:
+        result = subprocess.run(
+            ['git', 'checkout', 'main'],
+            cwd=_VERSION_REPO, capture_output=True, text=True, timeout=10
+        )
+        return jsonify({'success': True, 'message': '已恢复到最新版本'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 if __name__ == '__main__':
     # 启动后台线程预加载OCR(不阻塞主服务)
     t = threading.Thread(target=preload_ocr_background, daemon=True)

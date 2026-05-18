@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>版本管理 - 官渡分配工具</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; margin-bottom: 4px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .header .btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); }
+        .header .btn:hover { background: rgba(255,255,255,0.3); }
+
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #333; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-secondary { background: #e0e0e0; color: #333; }
+        .btn-secondary:hover { background: #d0d0d0; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .commit-table { width: 100%; border-collapse: collapse; }
+        .commit-table th { text-align: left; padding: 10px; background: #f8f9fa; color: #666; font-size: 13px; border-bottom: 2px solid #eee; }
+        .commit-table td { padding: 10px; border-bottom: 1px solid #f0f0f0; font-size: 14px; vertical-align: middle; }
+        .commit-table tr:hover { background: #f8f9ff; }
+        .commit-table .hash { font-family: monospace; color: #667eea; font-size: 13px; }
+        .commit-table .date { color: #888; font-size: 13px; }
+        .commit-table .message { color: #333; }
+        .commit-table .actions { display: flex; gap: 6px; }
+        .commit-table .current { background: #e8f5e9; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal h3 { margin-bottom: 16px; color: #333; }
+        .modal .form-group { margin-bottom: 16px; }
+        .modal label { display: block; font-size: 14px; color: #666; margin-bottom: 6px; }
+        .modal input[type="password"] { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .modal input[type="password"]:focus { border-color: #667eea; outline: none; }
+        .modal .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .diff-content { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+
+        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; color: white; font-size: 14px; z-index: 2000; display: none; }
+        .toast.success { background: #28a745; }
+        .toast.error { background: #dc3545; }
+        .toast.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>📦 版本管理</h1>
+                <p>查看提交历史、回滚到指定版本</p>
+            </div>
+            <button class="btn btn-secondary" onclick="location.href='/'">← 返回主页</button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">提交历史</div>
+            <table class="commit-table">
+                <thead>
+                    <tr>
+                        <th style="width:80px">Hash</th>
+                        <th style="width:90px">日期</th>
+                        <th>提交信息</th>
+                        <th style="width:180px">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="commit-tbody">
+                    <tr><td colspan="4" style="text-align:center;color:#888;padding:20px;">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 回滚确认弹窗 -->
+    <div class="modal-overlay" id="rollback-modal">
+        <div class="modal">
+            <h3>⚠️ 确认回滚</h3>
+            <p style="color:#666;margin-bottom:16px;">回滚后服务会自动重启，确定要继续吗？</p>
+            <div class="form-group">
+                <label>目标版本 Hash</label>
+                <input type="text" id="rollback-hash" disabled style="background:#f0f0f0;">
+            </div>
+            <div class="form-group">
+                <label>确认密码</label>
+                <input type="password" id="rollback-password" placeholder="请输入密码...">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="closeRollbackModal()">取消</button>
+                <button class="btn btn-danger" onclick="confirmRollback()">确认回滚</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diff 弹窗 -->
+    <div class="modal-overlay" id="diff-modal">
+        <div class="modal">
+            <h3>📝 提交详情</h3>
+            <div class="diff-content" id="diff-content">加载中...</div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="closeDiffModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let currentHead = null;
+
+        async function loadCommits() {
+            const res = await fetch('/api/version/log');
+            const data = await res.json();
+            if (!data.success) {
+                showToast(data.error || '加载失败', 'error');
+                return;
+            }
+            currentHead = data.head;
+            const tbody = document.getElementById('commit-tbody');
+            if (data.commits.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;padding:20px;">暂无提交记录</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.commits.map(c => {
+                const isCurrent = c.hash === currentHead;
+                return `<tr class="${isCurrent ? 'current' : ''}">
+                    <td><span class="hash">${c.hash}</span></td>
+                    <td><span class="date">${c.date}</span></td>
+                    <td><span class="message">${c.message}</span> ${isCurrent ? '<span style="background:#28a745;color:white;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">当前</span>' : ''}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-sm btn-secondary" onclick="viewDiff('${c.full_hash}')">查看</button>
+                            ${!isCurrent ? `<button class="btn btn-sm btn-danger" onclick="openRollbackModal('${c.full_hash}')">回滚</button>` : ''}
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function openRollbackModal(hash) {
+            document.getElementById('rollback-hash').value = hash;
+            document.getElementById('rollback-password').value = '';
+            document.getElementById('rollback-modal').classList.add('active');
+        }
+
+        function closeRollbackModal() {
+            document.getElementById('rollback-modal').classList.remove('active');
+        }
+
+        async function confirmRollback() {
+            const hash = document.getElementById('rollback-hash').value;
+            const password = document.getElementById('rollback-password').value;
+            const res = await fetch('/api/version/rollback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({commit_hash: hash, password: password})
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message || '回滚成功', 'success');
+                closeRollbackModal();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(data.error || '回滚失败', 'error');
+            }
+        }
+
+        async function viewDiff(hash) {
+            const res = await fetch('/api/version/diff/' + hash);
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('diff-content').textContent = data.diff || '(无 diff 内容)';
+                document.getElementById('diff-modal').classList.add('active');
+            } else {
+                showToast(data.error || '加载失败', 'error');
+            }
+        }
+
+        function closeDiffModal() {
+            document.getElementById('diff-modal').classList.remove('active');
+        }
+
+        function showToast(msg, type) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast ' + type + ' active';
+            setTimeout(() => t.classList.remove('active'), 3000);
+        }
+
+        loadCommits();
+    </script>
+</body>
+</html>
