@@ -1,0 +1,53 @@
+[考勤] SYSTEM: 考勤数据库初始化完成
+[启动] Flask服务启动中... (OCR模型将在后台加载)
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.110.25:5001
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [14/May/2026 11:23:59] "GET /api/formations/presets HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 11:24:09] "GET /formation HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 11:24:23] "GET /formation HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:23:55] "GET /formation HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:25:54] "GET /formation HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:25:54] "GET /api/formations/presets HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:26:14] "GET /formation HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:26:14] "GET /api/formations/presets HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:26:14] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [14/May/2026 12:27:11] "GET /formation HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:27:11] "GET /api/formations/presets HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:27:13] "GET /formation HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:27:13] "GET /api/formations/presets HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:27:18] "GET /formation HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:27:18] "GET /api/formations/presets HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:27:18] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [14/May/2026 12:27:19] "GET /formation HTTP/1.1" 200 -
+127.0.0.1 - - [14/May/2026 12:27:19] "GET /api/formations/presets HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 10:55:05] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 10:55:05] "GET /static/vue.global.prod.js HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 10:55:05] "GET /api/init?section=团一&_t=1778986505631 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 10:55:05] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [17/May/2026 10:55:20] "POST /api/upload_stats HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 10:55:20] "POST /api/match_members HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:06:18] "GET /api/load_guandu?section=团二 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:06:43] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:06:43] "GET /static/vue.global.prod.js HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:06:43] "GET /api/init?section=团一&_t=1778987203309 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:06:47] "GET /api/load_guandu?section=团二 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:06:57] "POST /api/upload_stats HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:06:57] "POST /api/match_members HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:11:34] "POST /api/upload_stats HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:11:34] "POST /api/match_members HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:13:37] "POST /api/assign HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:15:26] "POST /api/assign HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:57:24] "POST /api/export HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 11:57:24] "GET /download/官渡分配表_团二_20260517_115724.xlsx HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:05:03] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:05:03] "GET /static/vue.global.prod.js HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:05:03] "GET /api/init?section=团一&_t=1778990703805 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:10:52] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:10:55] "GET /api/init HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:11:04] "GET /api/init HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:11:26] "GET /api/init HTTP/1.1" 200 -

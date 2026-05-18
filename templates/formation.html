@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>官渡队形配置</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .header h1 { font-size: 24px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; }
+        
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #333; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        
+        .form-row { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 150px; }
+        .form-group label { display: block; font-size: 14px; color: #666; margin-bottom: 6px; }
+        .form-group select, .form-group input { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .form-group select:focus, .form-group input:focus { border-color: #667eea; outline: none; }
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-secondary { background: #e0e0e0; color: #333; }
+        .btn-secondary:hover { background: #d0d0d0; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        
+        .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .preset-card { border: 2px solid #e0e0e0; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s; }
+        .preset-card:hover { border-color: #667eea; background: #f8f9ff; }
+        .preset-card.active { border-color: #667eea; background: #f0f3ff; }
+        .preset-card h4 { font-size: 14px; color: #333; margin-bottom: 4px; }
+        .preset-card p { font-size: 12px; color: #888; }
+        
+        .stats-bar { display: flex; gap: 16px; align-items: center; padding: 12px 16px; background: #f0f3ff; border-radius: 8px; margin-bottom: 16px; font-size: 14px; flex-wrap: wrap; }
+        .stat-pill { display: flex; align-items: center; gap: 6px; }
+        .stat-pill .val { font-weight: 700; color: #667eea; font-size: 18px; }
+        .stat-pill .label { color: #888; }
+        .stat-divider { width: 1px; height: 20px; background: #ddd; }
+        .remaining-ok { color: #28a745; font-weight: 600; }
+        .remaining-warn { color: #dc3545; font-weight: 600; }
+        
+        .team-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+        .team-row { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: #fafafa; border: 1px solid #eee; border-radius: 8px; flex-wrap: wrap; }
+        .team-row:hover { background: #f5f5ff; }
+        .team-num { min-width: 50px; font-weight: 700; color: #667eea; font-size: 15px; }
+        .team-field { display: flex; align-items: center; gap: 4px; }
+        .team-field label { font-size: 12px; color: #888; min-width: 32px; }
+        .team-field input { width: 60px; padding: 5px 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; text-align: center; }
+        .team-field input:focus { border-color: #667eea; outline: none; }
+        .team-row input.b-ro { background: #f0f0f0; color: #888; }
+        
+        .timeline { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; }
+        .time-block { min-width: 300px; flex: 1; }
+        .time-header { background: #667eea; color: white; padding: 10px; border-radius: 8px 8px 0 0; font-weight: 600; text-align: center; }
+        .time-content { border: 2px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px; padding: 12px; }
+        
+        .team-task { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .team-task:last-child { margin-bottom: 0; }
+        .team-label { min-width: 70px; font-size: 13px; font-weight: 600; color: #666; }
+        .team-task select { flex: 1; padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+        
+        .preview-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+        .preview-table th, .preview-table td { border: 1px solid #ddd; padding: 7px 5px; text-align: center; }
+        .preview-table th { background: #f8f9fa; font-weight: 600; }
+        .preview-table .team-name { font-weight: 700; background: #f0f3ff; }
+        .preview-table .captain-cell { background: #fffde7; }
+        .preview-table .agroup-cell { background: #e8f5e9; }
+        .preview-table .bgroup-cell { background: #e3f2fd; }
+        
+        .saved-list { margin-top: 16px; }
+        .saved-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; }
+        .saved-item:hover { background: #f8f9fa; }
+        .saved-item-info h4 { font-size: 14px; color: #333; }
+        .saved-item-info p { font-size: 12px; color: #888; }
+        .saved-item-actions { display: flex; gap: 8px; }
+        
+        .alert { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
+        .alert-warn { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        
+        .auto-fill-btn { font-size: 12px; padding: 5px 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚔️ 官渡队形配置</h1>
+            <p>自定义队伍数量、每队人数分配和时间段任务</p>
+        </div>
+        
+        <!-- 预设队形 -->
+        <div class="card">
+            <div class="card-title">📋 预设队形</div>
+            <div class="preset-grid" id="presetGrid"></div>
+        </div>
+        
+        <!-- 基本参数 -->
+        <div class="card">
+            <div class="card-title">⚙️ 基本参数</div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>团总人数</label>
+                    <input type="number" id="totalMembers" value="30" min="10" max="60" onchange="onBasicChange()">
+                </div>
+                <div class="form-group">
+                    <label>队伍数量</label>
+                    <select id="teamCount" onchange="onTeamCountChange()">
+                        <option value="5">5 队</option>
+                        <option value="6" selected>6 队</option>
+                        <option value="7">7 队</option>
+                        <option value="8">8 队</option>
+                        <option value="9">9 队</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- 统计栏 -->
+            <div class="stats-bar" id="statsBar">
+                <div class="stat-pill">
+                    <span class="val" id="sumTotal">30</span>
+                    <span class="label">人已分配</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-pill">
+                    <span class="val" id="sumRemain">0</span>
+                    <span class="label">人待分配</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-pill">
+                    <span class="val" id="sumCaptains">6</span>
+                    <span class="label">队长</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-pill">
+                    <span class="val" id="sumMembers">24</span>
+                    <span class="label">队员</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div id="balanceMsg" class="remaining-ok">✅ 人数已配平</div>
+                <div style="flex:1"></div>
+                <button class="btn btn-secondary auto-fill-btn" onclick="autoFill()">🔄 均分填充</button>
+            </div>
+            
+            <div id="balanceWarning" class="alert alert-warn" style="display:none"></div>
+            
+            <!-- 队伍列表 -->
+            <div class="team-list" id="teamList"></div>
+        </div>
+        
+        <!-- 时间段任务 -->
+        <div class="card">
+            <div class="card-title">⏱️ 时间段任务</div>
+            <div class="timeline" id="timeline"></div>
+        </div>
+        
+        <!-- 预览 -->
+        <div class="card">
+            <div class="card-title">👁️ 队形预览</div>
+            <div id="previewContent"></div>
+        </div>
+        
+        <!-- 保存 -->
+        <div class="card">
+            <div class="card-title">💾 保存队形</div>
+            <div class="form-row">
+                <div class="form-group" style="flex:2;">
+                    <label>队形名称</label>
+                    <input type="text" id="formationName" placeholder="输入队形名称">
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="saveFormation()">💾 保存</button>
+                <button class="btn btn-secondary" onclick="resetToDefault()">🔄 重置</button>
+                <button class="btn btn-success" onclick="exportFormation()">📤 导出</button>
+            </div>
+            <div class="saved-list" id="savedList"></div>
+        </div>
+    </div>
+    
+    <script>
+        let taskOptions = [];
+        let presets = [];
+        
+        // 队形数据
+        let formation = {
+            name: '',
+            totalMembers: 30,
+            teams: []
+        };
+        
+        // 初始化
+        async function init() {
+            try {
+                const res = await fetch('/api/formations/presets');
+                const data = await res.json();
+                presets = data.formations;
+                taskOptions = data.tasks;
+            } catch (e) {
+                taskOptions = ['占工匠坊', '占兵器坊', '占自己方上粮仓', '占自己方中粮仓', '占自己方下粮仓', '占乌巢', '占官渡', '占霹雳车', '占大粮仓', '驻防采集', '防守反击', '支援邻队', '待命'];
+            }
+            renderPresets();
+            onTeamCountChange();
+            loadSavedFormations();
+        }
+        
+        // 渲染预设
+        function renderPresets() {
+            const grid = document.getElementById('presetGrid');
+            if (!presets.length) {
+                grid.innerHTML = '<p style="color:#888;font-size:13px">暂无预设</p>';
+                return;
+            }
+            grid.innerHTML = presets.map(p => `
+                <div class="preset-card" onclick="loadPreset('${p.id}')">
+                    <h4>${p.name}</h4>
+                    <p>${p.teams ? p.teams.length + '队' : p.teamCount + '队'} · ${p.totalMembers || (p.teamCount * p.teamSize)}人</p>
+                </div>
+            `).join('');
+        }
+        
+        // 加载预设
+        function loadPreset(id) {
+            const p = presets.find(x => x.id === id);
+            if (!p) return;
+            
+            if (p.teams) {
+                // 新格式
+                formation = JSON.parse(JSON.stringify(p));
+                document.getElementById('totalMembers').value = formation.totalMembers;
+                document.getElementById('teamCount').value = formation.teams.length;
+                document.getElementById('formationName').value = formation.name;
+            } else {
+                // 旧格式兼容：6队×teamSize人 → 转成6队×teamSize人
+                formation.totalMembers = p.totalMembers || (p.teamCount * p.teamSize);
+                formation.teams = [];
+                for (let i = 0; i < p.teamCount; i++) {
+                    const size = p.teamSize;
+                    const capCount = p.hasAB ? 1 : 0;
+                    const aSize = p.groupASize || Math.floor((size - 1) / 2);
+                    formation.teams.push({
+                        size: size,
+                        captainCount: capCount,
+                        groupASize: aSize,
+                        tasks: {
+                            '0-10': p.tasks['0-10']?.[i] || '待命',
+                            '10-20': p.tasks['10-20']?.[i] || '待命',
+                            '20+': p.tasks['20+']?.[i] || '驻防采集',
+                            '0-10-b': p.tasks['0-10-b']?.[i] || p.tasks['0-10']?.[i] || '待命',
+                            '10-20-b': p.tasks['10-20-b']?.[i] || p.tasks['10-20']?.[i] || '驻防采集',
+                            '20+-b': p.tasks['20+-b']?.[i] || p.tasks['20+']?.[i] || '驻防采集'
+                        }
+                    });
+                }
+                document.getElementById('totalMembers').value = formation.totalMembers;
+                document.getElementById('teamCount').value = p.teamCount;
+                document.getElementById('formationName').value = p.name;
+            }
+            
+            rebuildUI();
+            updateStats();
+            updatePreview();
+            
+            document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+            event.target.closest('.preset-card').classList.add('active');
+        }
+        
+        // 队数变化
+        function onTeamCountChange() {
+            const count = parseInt(document.getElementById('teamCount').value);
+            const oldCount = formation.teams.length;
+            
+            if (count > oldCount) {
+                for (let i = oldCount; i < count; i++) {
+                    formation.teams.push({
+                        size: 5,
+                        captainCount: 1,
+                        groupASize: 2,
+                        tasks: {
+                            '0-10': '待命', '10-20': '待命', '20+': '驻防采集',
+                            '0-10-b': '待命', '10-20-b': '待命', '20+-b': '驻防采集'
+                        }
+                    });
+                }
+            } else if (count < oldCount) {
+                formation.teams = formation.teams.slice(0, count);
+            }
+            
+            rebuildUI();
+            updateStats();
+            updatePreview();
+        }
+        
+        function onBasicChange() {
+            formation.totalMembers = parseInt(document.getElementById('totalMembers').value) || 30;
+            updateStats();
+            updatePreview();
+        }
+        
+        // 均分填充
+        function autoFill() {
+            const total = formation.totalMembers;
+            const count = formation.teams.length;
+            const base = Math.floor(total / count);
+            const remainder = total % count;
+            
+            formation.teams.forEach((t, i) => {
+                t.size = base + (i < remainder ? 1 : 0);
+                t.captainCount = 1;
+                t.groupASize = Math.max(1, Math.floor((t.size - 1) / 2));
+            });
+            
+            rebuildUI();
+            updateStats();
+            updatePreview();
+        }
+        
+        // 更新统计
+        function updateStats() {
+            const total = formation.totalMembers;
+            const sumSize = formation.teams.reduce((s, t) => s + t.size, 0);
+            const sumCap = formation.teams.reduce((s, t) => s + (t.captainCount || 0), 0);
+            const remain = total - sumSize;
+            
+            document.getElementById('sumTotal').textContent = sumSize;
+            document.getElementById('sumRemain').textContent = remain;
+            document.getElementById('sumCaptains').textContent = sumCap;
+            document.getElementById('sumMembers').textContent = sumSize - sumCap;
+            
+            const msg = document.getElementById('balanceMsg');
+            const warn = document.getElementById('balanceWarning');
+            if (remain === 0) {
+                msg.className = 'remaining-ok';
+                msg.textContent = '✅ 人数已配平';
+                warn.style.display = 'none';
+            } else if (remain > 0) {
+                msg.className = 'remaining-warn';
+                msg.textContent = '⚠️ 还差 ' + remain + ' 人';
+                warn.style.display = 'none';
+            } else {
+                msg.className = 'remaining-warn';
+                msg.textContent = '❌ 超员 ' + (-remain) + ' 人';
+                warn.style.display = 'block';
+                warn.textContent = '⚠️ 超员 ' + (-remain) + ' 人，请减少各队人数（当前 ' + sumSize + ' 人，目标 ' + total + ' 人）';
+            }
+        }
+        
+        // 重建队伍列表
+        function rebuildUI() {
+            const list = document.getElementById('teamList');
+            list.innerHTML = formation.teams.map((t, i) => {
+                const maxA = t.size - (t.captainCount || 1);
+                const bSize = Math.max(0, t.size - (t.captainCount || 0) - (t.groupASize || 0));
+                return `
+                <div class="team-row">
+                    <span class="team-num">${i+1}队</span>
+                    <div class="team-field">
+                        <label>总人数</label>
+                        <input type="number" value="${t.size}" min="1" max="30"
+                            onchange="onTeamSizeChange(${i}, this.value)">
+                    </div>
+                    <div class="team-field">
+                        <label>队长</label>
+                        <input type="number" value="${t.captainCount || 1}" min="0" max="${t.size}"
+                            onchange="onCaptainChange(${i}, this.value)">
+                    </div>
+                    <div class="team-field">
+                        <label>A组</label>
+                        <input type="number" value="${t.groupASize || 2}" min="0" max="${maxA}"
+                            onchange="onAChange(${i}, this.value)">
+                    </div>
+                    <div class="team-field">
+                        <label>B组</label>
+                        <input type="number" class="b-ro" value="${bSize}" readonly>
+                    </div>
+                    <span style="font-size:12px;color:#aaa;margin-left:4px">（${t.size - (t.captainCount||0) - (t.groupASize||0)}人）</span>
+                </div>`;
+            }).join('');
+            
+            renderTimeline();
+            updatePreview();
+        }
+        
+        function onTeamSizeChange(i, val) {
+            formation.teams[i].size = Math.max(1, parseInt(val) || 1);
+            const cap = formation.teams[i].captainCount || 0;
+            const maxA = Math.max(0, formation.teams[i].size - cap);
+            if ((formation.teams[i].groupASize || 0) > maxA) {
+                formation.teams[i].groupASize = Math.max(1, maxA);
+            }
+            rebuildUI();
+            updateStats();
+        }
+        
+        function onCaptainChange(i, val) {
+            formation.teams[i].captainCount = Math.max(0, Math.min(parseInt(val) || 0, formation.teams[i].size));
+            const maxA = Math.max(0, formation.teams[i].size - formation.teams[i].captainCount);
+            if ((formation.teams[i].groupASize || 0) > maxA) {
+                formation.teams[i].groupASize = Math.max(0, maxA);
+            }
+            rebuildUI();
+            updateStats();
+        }
+        
+        function onAChange(i, val) {
+            formation.teams[i].groupASize = Math.max(0, parseInt(val) || 0);
+            rebuildUI();
+            updateStats();
+        }
+        
+        // 时间段任务
+        function renderTimeline() {
+            const timeline = document.getElementById('timeline');
+            const periods = [
+                { key: '0-10', label: '0-10 分钟' },
+                { key: '10-20', label: '10-20 分钟' },
+                { key: '20+', label: '20 分钟后' }
+            ];
+            
+            let html = '';
+            periods.forEach(p => {
+                html += `<div class="time-block">
+                    <div class="time-header">${p.label}</div>
+                    <div class="time-content">
+                        ${formation.teams.map((t, i) => {
+                            const taskA = t.tasks[p.key] || '待命';
+                            const taskB = t.tasks[p.key + '-b'] || taskA;
+                            const bSame = taskB === taskA;
+                            return `
+                            <div class="team-task">
+                                <span class="team-label">${i+1}队 队长+A</span>
+                                <select onchange="updateTask(${i}, '${p.key}', this.value)">
+                                    ${taskOptions.map(opt => `<option value="${opt}" ${taskA === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="team-task">
+                                <span class="team-label">${i+1}队 B组</span>
+                                <select onchange="updateTaskB(${i}, '${p.key}', this.value)">
+                                    <option value="__same__" ${bSame ? 'selected' : ''}>同队长+A组</option>
+                                    ${taskOptions.map(opt => `<option value="${opt}" ${!bSame && taskB === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                                </select>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+            });
+            timeline.innerHTML = html;
+        }
+        
+        function updateTask(i, period, value) {
+            formation.teams[i].tasks[period] = value;
+            updatePreview();
+        }
+        
+        function updateTaskB(i, period, value) {
+            if (value === '__same__') {
+                formation.teams[i].tasks[period + '-b'] = formation.teams[i].tasks[period];
+            } else {
+                formation.teams[i].tasks[period + '-b'] = value;
+            }
+            updatePreview();
+        }
+        
+        // 预览表格
+        function updatePreview() {
+            const preview = document.getElementById('previewContent');
+            const periods = ['0-10', '10-20', '20+'];
+            const pNames = ['0-10分', '10-20分', '20分后'];
+            
+            let html = '<table class="preview-table"><thead><tr><th>队</th><th>总人数</th><th>👑队长</th><th>🟢A组</th><th>🔵B组</th>';
+            pNames.forEach(n => html += `<th>${n}</th>`);
+            html += '</tr></thead><tbody>';
+            
+            formation.teams.forEach((t, i) => {
+                const cap = t.captainCount || 0;
+                const aSize = t.groupASize || 0;
+                const bSize = t.size - cap - aSize;
+                html += `<tr>
+                    <td class="team-name">${i+1}队</td>
+                    <td>${t.size}</td>
+                    <td class="captain-cell">${cap}</td>
+                    <td class="agroup-cell">${aSize}</td>
+                    <td class="bgroup-cell">${bSize}</td>`;
+                periods.forEach(p => {
+                    const taskA = t.tasks[p] || '-';
+                    const taskB = t.tasks[p + '-b'] || taskA;
+                    if (taskB !== taskA) {
+                        html += `<td>${taskA}<br><small style="color:#64b5f6">B:${taskB}</small></td>`;
+                    } else {
+                        html += `<td>${taskA}</td>`;
+                    }
+                });
+                html += '</tr>';
+            });
+            
+            const totalSize = formation.teams.reduce((s, t) => s + t.size, 0);
+            const totalCap = formation.teams.reduce((s, t) => s + (t.captainCount || 0), 0);
+            const totalA = formation.teams.reduce((s, t) => s + (t.groupASize || 0), 0);
+            const totalB = formation.teams.reduce((s, t) => s + (t.size - (t.captainCount||0) - (t.groupASize||0)), 0);
+            html += `<tr style="background:#f5f5f5;font-weight:700">
+                <td class="team-name">合计</td>
+                <td>${totalSize}</td>
+                <td>${totalCap}</td>
+                <td>${totalA}</td>
+                <td>${totalB}</td>
+                <td colspan="3"></td>
+            </tr></tbody></table>`;
+            
+            preview.innerHTML = html;
+        }
+        
+        // 保存/加载
+        function saveFormation() {
+            const name = document.getElementById('formationName').value.trim();
+            if (!name) { alert('请输入队形名称'); return; }
+            formation.name = name;
+            
+            let saved = JSON.parse(localStorage.getItem('savedFormations_v2') || '[]');
+            const idx = saved.findIndex(f => f.name === name);
+            if (idx >= 0) {
+                if (!confirm('"' + name + '"已存在，覆盖？')) return;
+                saved[idx] = JSON.parse(JSON.stringify(formation));
+            } else {
+                saved.push(JSON.parse(JSON.stringify(formation)));
+            }
+            localStorage.setItem('savedFormations_v2', JSON.stringify(saved));
+            alert('已保存！');
+            loadSavedFormations();
+        }
+        
+        function loadSavedFormations() {
+            const saved = JSON.parse(localStorage.getItem('savedFormations_v2') || '[]');
+            const list = document.getElementById('savedList');
+            if (!saved.length) {
+                list.innerHTML = '<p style="color:#888;text-align:center;padding:16px">暂无保存的队形</p>';
+                return;
+            }
+            list.innerHTML = '<h4 style="margin-bottom:10px;color:#333">已保存的队形</h4>' +
+                saved.map((f, i) => `
+                    <div class="saved-item">
+                        <div class="saved-item-info">
+                            <h4>${f.name}</h4>
+                            <p>${f.teams.length}队 · ${f.teams.reduce((s,t)=>s+t.size,0)}人 · 队长${f.teams.reduce((s,t)=>s+(t.captainCount||0),0)}人</p>
+                        </div>
+                        <div class="saved-item-actions">
+                            <button class="btn btn-primary btn-sm" onclick="loadSaved(${i})">加载</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteSaved(${i})">删除</button>
+                        </div>
+                    </div>
+                `).join('');
+        }
+        
+        function loadSaved(index) {
+            const saved = JSON.parse(localStorage.getItem('savedFormations_v2') || '[]');
+            formation = JSON.parse(JSON.stringify(saved[index]));
+            document.getElementById('totalMembers').value = formation.totalMembers;
+            document.getElementById('teamCount').value = formation.teams.length;
+            document.getElementById('formationName').value = formation.name;
+            rebuildUI();
+            updateStats();
+            updatePreview();
+        }
+        
+        function deleteSaved(index) {
+            if (!confirm('删除该队形？')) return;
+            let saved = JSON.parse(localStorage.getItem('savedFormations_v2') || '[]');
+            saved.splice(index, 1);
+            localStorage.setItem('savedFormations_v2', JSON.stringify(saved));
+            loadSavedFormations();
+        }
+        
+        function resetToDefault() {
+            document.getElementById('totalMembers').value = 30;
+            document.getElementById('teamCount').value = 6;
+            document.getElementById('formationName').value = '';
+            formation = { name: '', totalMembers: 30, teams: [] };
+            onTeamCountChange();
+        }
+        
+        function exportFormation() {
+            formation.name = document.getElementById('formationName').value || '未命名';
+            const blob = new Blob([JSON.stringify(formation, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = formation.name + '.json';
+            a.click();
+        }
+        
+        init();
+    </script>
+</body>
+</html>

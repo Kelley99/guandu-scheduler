@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Vue CDN Test</title>
+</head>
+<body>
+    <h1>Vue CDN Test Page</h1>
+    
+    <script src="https://unpkg.com/vue@3.5.33/dist/vue.global.prod.js"></script>
+    
+    <div id="app">
+        <p>Vue loaded: {{ vueLoaded }}</p>
+        <p>Message: {{ message }}</p>
+        <button @click="changeMessage">Click me</button>
+    </div>
+    
+    <script>
+        alert('Script started');
+        console.log('typeof Vue:', typeof Vue);
+        
+        if (typeof Vue === 'undefined') {
+            alert('ERROR: Vue is not loaded!');
+        } else {
+            alert('Vue loaded successfully: ' + Vue.version);
+            
+            try {
+                const { createApp, ref } = Vue;
+                
+                createApp({
+                    setup() {
+                        const vueLoaded = ref(true);
+                        const message = ref('Hello from Vue!');
+                        
+                        const changeMessage = () => {
+                            message.value = 'Button clicked!';
+                        };
+                        
+                        return {
+                            vueLoaded,
+                            message,
+                            changeMessage
+                        };
+                    }
+                }).mount('#app');
+                
+                alert('Vue mounted successfully!');
+            } catch(e) {
+                alert('ERROR: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.110.25:5001
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [29/Apr/2026 18:51:06] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 18:51:06] "GET /static/vue.global.prod.js HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 18:51:06] "GET /diag.html HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 18:51:13] "GET /api/init?section=团一&_t=1777459873759 HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 18:52:19] "POST /api/assign HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 18:52:27] "POST /api/export HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 18:52:29] "GET /download/官渡分配表_团一_20260429_185227.xlsx HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:04:39] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:14:42] "GET /api/sections HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:14:53] "GET /api/init?section=团一 HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:15:00] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:15:14] "GET /api/init?section=团一 HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:15:14] "POST /api/assign HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:16:38] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:16:38] "GET /static/vue.global.prod.js HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:16:38] "GET /api/init?section=团一&_t=1777461398639 HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:17:52] "POST /api/assign HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:18:47] "POST /api/export HTTP/1.1" 200 -
+127.0.0.1 - - [29/Apr/2026 19:18:47] "GET /download/官渡分配表_团一_20260429_191847.xlsx HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 11:28:22] "GET /api/sections HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 11:28:34] "POST /api/assign HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 11:28:58] "GET /api/init HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 11:29:21] "GET /api/init HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 11:29:21] "POST /api/assign HTTP/1.1" 200 -
+127.0.0.1 - - [30/Apr/2026 11:29:21] "POST /api/export HTTP/1.1" 200 -

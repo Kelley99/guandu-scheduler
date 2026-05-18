@@ -5,7 +5,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>官渡自动分配工具</title>
-    <script src="/static/vue.global.prod.js"></script>
+    <!-- TEST MARKER: 如果你看到这一行，说明 HTML 加载成功 -->
+    <script>console.log('HTML loaded');</script>
+<script src="https://unpkg.com/vue@3.5.33/dist/vue.global.prod.js"></script>
+    <!-- 使用原生 fetch，不再依赖 axios CDN -->
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -14,293 +17,225 @@
             min-height: 100vh;
             color: #e0e0e0;
         }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        h1 { text-align: center; color: #ffd700; margin-bottom: 24px; font-size: 1.8rem; letter-spacing: 2px; }
-
-        /* 步骤条 */
-        .steps-bar {
-            display: flex; justify-content: center; gap: 0;
-            margin-bottom: 28px; background: rgba(255,255,255,0.08);
-            border-radius: 12px; padding: 12px 0;
-        }
-        .step-item {
-            display: flex; align-items: center; gap: 8px;
-            padding: 8px 20px; cursor: pointer; transition: all 0.3s;
-            border-radius: 8px; font-size: 14px; color: #aaa;
-        }
-        .step-item:hover { background: rgba(255,255,255,0.05); }
-        .step-item.active { color: #ffd700; font-weight: bold; }
-        .step-item.done { color: #28a745; }
-        .step-num {
-            width: 28px; height: 28px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: bold; border: 2px solid #555;
-            color: #555; transition: all 0.3s;
-        }
-        .step-item.active .step-num { border-color: #ffd700; color: #ffd700; background: rgba(255,215,0,0.15); }
-        .step-item.done .step-num { border-color: #28a745; color: #fff; background: #28a745; }
-        .step-connector { width: 30px; height: 2px; background: #444; align-self: center; }
-        .step-connector.done { background: #28a745; }
-
-        /* 卡片 */
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #ffd700; margin-bottom: 30px; font-size: 2rem; }
         .card {
-            background: rgba(255,255,255,0.97); border-radius: 12px;
-            padding: 24px; margin-bottom: 20px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3); color: #333;
+            background: rgba(255,255,255,0.97);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            color: #333;
         }
         .card-header {
-            font-size: 1.1rem; font-weight: bold; color: #1a1a2e;
-            margin-bottom: 16px; padding-bottom: 12px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1a1a2e;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
             border-bottom: 2px solid #ffd700;
-            display: flex; align-items: center; justify-content: space-between;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .card-header .badge {
-            background: #28a745; color: #fff; padding: 2px 10px;
-            border-radius: 12px; font-size: 12px; font-weight: normal;
-        }
-        .card-header .badge.warn { background: #ffc107; color: #333; }
-
-        /* 表单 */
         .form-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
         .form-group { flex: 1; min-width: 200px; }
-        label { display: block; margin-bottom: 6px; font-weight: 500; color: #555; font-size: 14px; }
-        select, input[type="number"], input[type="text"] {
-            width: 100%; padding: 10px 12px;
-            border: 2px solid #ddd; border-radius: 8px; font-size: 14px; background: #fff;
+        label { display: block; margin-bottom: 6px; font-weight: 500; color: #555; }
+        select, input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
         }
         select:focus, input:focus { outline: none; border-color: #ffd700; }
-
-        /* 按钮 */
         .btn {
-            padding: 10px 22px; border: none; border-radius: 8px;
-            font-size: 14px; font-weight: bold; cursor: pointer;
-            transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
-        .btn-primary { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #1a1a2e; }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,215,0,0.4); }
+        .btn-primary { background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color: #1a1a2e; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,215,0,0.4); }
         .btn-secondary { background: #6c757d; color: white; }
         .btn-secondary:hover { background: #5a6268; }
-        .btn-success { background: linear-gradient(135deg, #28a745, #20c997); color: white; }
-        .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(40,167,69,0.4); }
-        .btn-sm { padding: 6px 14px; font-size: 12px; }
+        .btn-success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; }
+        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(40,167,69,0.4); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-link { background: none; border: none; color: #007bff; cursor: pointer; padding: 0; font-size: inherit; text-decoration: underline; }
         .btn-group { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
-
-        /* 标签选择 */
-        .section-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .section-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
         .tab-btn {
-            padding: 8px 16px; border: 2px solid #ddd; border-radius: 20px;
-            background: white; cursor: pointer; transition: all 0.3s; font-size: 14px;
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
         }
         .tab-btn.active { background: #ffd700; border-color: #ffd700; color: #1a1a2e; font-weight: bold; }
         .tab-btn:hover:not(.active) { border-color: #ffd700; }
-
-        /* 成员网格 */
-        .members-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 6px; margin-top: 12px;
-        }
-        .member-chip {
-            background: #e9ecef; padding: 6px 10px; border-radius: 16px;
-            font-size: 13px; display: flex; align-items: center;
-            justify-content: space-between; transition: all 0.2s;
-        }
-        .member-chip:hover { background: #d4edda; }
-        .member-chip .val { font-size: 11px; color: #666; font-weight: 500; }
-        .val-high { color: #28a745 !important; font-weight: bold !important; }
-        .val-mid { color: #ffc107 !important; }
-        .val-low { color: #dc3545 !important; }
-        .val-unknown { color: #999 !important; font-style: italic; }
-
-        /* 表格 */
-        table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
-        th, td { border: 1px solid #ddd; padding: 8px 6px; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #ddd; padding: 10px 8px; text-align: left; }
         th { background: #f8f9fa; font-weight: bold; color: #1a1a2e; }
         tr:nth-child(even) { background: #f8f9fa; }
         tr:hover { background: #fff3cd; }
-
-        /* 匹配项 */
+        .hp-high { color: #28a745; font-weight: bold; }
+        .hp-mid { color: #ffc107; }
+        .hp-low { color: #dc3545; }
+        .hp-unknown { color: #6c757d; font-style: italic; }
+        .members-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .member-chip {
+            background: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .member-chip .hp { font-size: 11px; color: #666; }
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 700px;
+            width: 95%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .modal-header { font-size: 1.3rem; font-weight: bold; margin-bottom: 16px; color: #1a1a2e; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
         .match-item {
-            display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-            border-bottom: 1px solid #eee; flex-wrap: wrap;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            flex-wrap: wrap;
         }
         .match-item:last-child { border-bottom: none; }
-        .match-item .orig { min-width: 100px; font-weight: bold; }
-
-        /* 队伍卡片 */
-        .team-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; margin-top: 16px; }
-        .team-card { border: 2px solid #e9ecef; border-radius: 10px; overflow: hidden; }
-        .team-card-header {
-            padding: 10px 14px; font-weight: bold; font-size: 14px;
-            display: flex; justify-content: space-between; align-items: center;
+        .match-item .orig { min-width: 120px; font-weight: bold; }
+        .match-item select, .match-item input {
+            flex: 1;
+            min-width: 150px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
-        .team-card-header.t1 { background: linear-gradient(135deg, #ffd700, #ffb300); color: #1a1a2e; }
-        .team-card-header.t2 { background: linear-gradient(135deg, #4fc3f7, #0288d1); color: #fff; }
-        .team-card-header.t3 { background: linear-gradient(135deg, #81c784, #388e3c); color: #fff; }
-        .team-card-header.t4 { background: linear-gradient(135deg, #e57373, #c62828); color: #fff; }
-        .team-card-header.t5 { background: linear-gradient(135deg, #ba68c8, #6a1b9a); color: #fff; }
-        .team-card-header.t6 { background: linear-gradient(135deg, #ff8a65, #d84315); color: #fff; }
-        .team-card-body { padding: 10px 14px; background: #fff; }
-        .team-member-row {
-            display: flex; align-items: center; padding: 4px 0;
-            border-bottom: 1px solid #f0f0f0; font-size: 13px;
+        .preview-section { margin-top: 20px; }
+        .preview-table { font-size: 12px; }
+        .preview-table th { background: #ffd700; color: #1a1a2e; }
+        .stats-bar { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+        .stat-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 100px;
         }
-        .team-member-row:last-child { border-bottom: none; }
-        .team-member-row .pos { color: #999; width: 32px; font-size: 11px; flex-shrink: 0; }
-        .team-member-row .name { flex: 1; font-weight: 500; }
-        .team-member-row .score { color: #666; font-size: 12px; }
-        .team-card-footer {
-            padding: 8px 14px; background: #f8f9fa; font-size: 12px; color: #666;
-            display: flex; justify-content: space-between;
+        .stat-item .value { font-size: 1.5rem; font-weight: bold; }
+        .stat-item .label { font-size: 0.85rem; opacity: 0.9; }
+        .instruction {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            border-radius: 0 8px 8px 0;
+            color: #333;
         }
-
-        /* 实力对比条 */
-        .strength-bar { margin-top: 16px; }
-        .strength-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
-        .strength-row .team-label { width: 50px; font-weight: bold; }
-        .strength-row .bar-bg { flex: 1; height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden; }
-        .strength-row .bar-fill {
-            height: 100%; border-radius: 10px; transition: width 0.5s;
-            display: flex; align-items: center; justify-content: center;
-            color: #fff; font-size: 11px; font-weight: bold;
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 12px;
         }
-
-        /* 配置面板 */
-        .config-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 16px; margin-top: 12px;
-        }
-        .config-block { padding: 14px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; }
-        .config-block h4 { font-size: 14px; color: #1a1a2e; margin-bottom: 10px; }
-
-        /* Radio 按钮 */
-        .radio-group { display: flex; gap: 16px; flex-wrap: wrap; }
-        .radio-group label {
-            display: flex; align-items: center; gap: 6px; cursor: pointer;
-            padding: 6px 12px; border: 2px solid #ddd; border-radius: 8px;
-            transition: all 0.2s; font-size: 14px;
-        }
-        .radio-group input:checked + span { color: #ffd700; font-weight: bold; }
-
-        /* 提示 */
-        .alert { padding: 10px 14px; border-radius: 8px; margin-top: 12px; font-size: 13px; }
         .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #dc3545; }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #28a745; }
-        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #17a2b8; }
-
-        /* 加载 */
         .loading {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); display: flex; align-items: center;
-            justify-content: center; z-index: 2000;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
         }
         .loading-content { background: white; padding: 30px 50px; border-radius: 12px; text-align: center; }
         .spinner {
-            border: 3px solid #f3f3f3; border-top: 3px solid #ffd700;
-            border-radius: 50%; width: 36px; height: 36px;
-            animation: spin 1s linear infinite; margin: 0 auto 14px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #ffd700;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         small { color: #666; font-size: 12px; }
-        
-        /* 成员行可点击 */
-        .team-member-row.clickable {
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .team-member-row.clickable:hover {
-            background: #fff3cd;
-        }
-        .swap-hint {
-            opacity: 0;
-            color: #ffd700;
-            font-size: 16px;
-            margin-left: 4px;
-            transition: opacity 0.2s;
-        }
-        .team-member-row.clickable:hover .swap-hint {
-            opacity: 1;
-        }
-        
-        /* 交换面板 */
-        .swap-panel-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); display: flex; align-items: center;
-            justify-content: center; z-index: 3000;
-        }
-        .swap-panel {
-            background: white; border-radius: 16px; width: 90%; max-width: 600px;
-            max-height: 80vh; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-        }
-        .swap-panel-header {
-            background: linear-gradient(135deg, #1a1a2e, #16213e); color: #ffd700;
-            padding: 16px 20px; font-weight: bold; font-size: 16px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .btn-close {
-            background: none; border: none; color: #fff; font-size: 24px;
-            cursor: pointer; opacity: 0.7; transition: opacity 0.2s;
-        }
-        .btn-close:hover { opacity: 1; }
-        .swap-panel-body { padding: 20px; }
-        .swap-source {
-            background: #fff3cd; padding: 12px 16px; border-radius: 8px;
-            margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
-        }
-        .swap-source .label { color: #666; font-size: 14px; }
-        .swap-source .name { font-weight: bold; color: #1a1a2e; font-size: 16px; }
-        .swap-source .pos { color: #888; font-size: 13px; }
-        .swap-target .label { font-size: 14px; color: #666; margin-bottom: 12px; display: block; }
-        .target-teams {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-            gap: 12px; max-height: 50vh; overflow-y: auto;
-        }
-        .target-team {
-            background: #f8f9fa; border-radius: 8px; padding: 10px;
-        }
-        .team-title {
-            font-weight: bold; color: #1a1a2e; font-size: 13px;
-            margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #e9ecef;
-        }
-        .team-slots { display: flex; flex-direction: column; gap: 4px; }
-        .slot {
-            display: flex; align-items: center; gap: 6px; padding: 6px 8px;
-            background: white; border-radius: 6px; cursor: pointer;
-            transition: all 0.2s; font-size: 12px;
-        }
-        .slot:hover { background: #d4edda; }
-        .slot.active { background: #fff3cd; }
-        .slot.disabled { opacity: 0.5; cursor: not-allowed; background: #f8f9fa; }
-        .slot-pos { color: #888; min-width: 28px; }
-        .slot-name { color: #1a1a2e; font-weight: 500; }
-
     </style>
 </head>
 <body>
+    <!-- TEST: If you see this, HTML is loading -->
+    <div style="background:red;color:white;padding:10px;font-size:20px;">如果看到这个，说明 HTML 加载了</div>
+    <div style="position:fixed;top:5px;right:10px;z-index:9999;background:#ff0;padding:2px 8px;font-size:12px;color:#000;">v20260426-2100 fetch</div>
     <div id="app">
         <div class="container">
-            <h1>⚔️ 官渡自动分配</h1>
-
-            <!-- 步骤条 -->
-            <div class="steps-bar">
-                <div v-for="(step, idx) in steps" :key="idx" style="display:flex;align-items:center">
-                    <div :class="['step-item', {active: currentStep === idx, done: currentStep > idx}]"
-                         @click="currentStep = Math.min(idx, maxReachedStep)">
-                        <span class="step-num">{{ currentStep > idx ? '✓' : idx + 1 }}</span>
-                        <span>{{ step }}</span>
-                    </div>
-                    <div v-if="idx < steps.length - 1"
-                         :class="['step-connector', {done: currentStep > idx}]"></div>
+            <h1>官渡自动分配工具</h1>
+            
+            <!-- 调试面板 -->
+            <div class="card" style="background:#ffe; border:2px solid #fc0; margin-bottom:16px">
+                <div style="font-weight:bold; color:#900; margin-bottom:8px">🔧 调试状态</div>
+                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px; font-size:12px">
+                    <div><b>statsLoaded:</b> {{ statsLoaded }}</div>
+                    <div><b>statsCount:</b> {{ statsCount }}</div>
+                    <div><b>members:</b> {{ members.length }}</div>
+                    <div><b>benchMembers:</b> {{ benchMembers.length }}</div>
+                    <div><b>matchDone:</b> {{ matchDone }}</div>
+                    <div><b>nameMap:</b> {{ Object.keys(nameMap).length }}</div>
+                    <div><b>unmatched:</b> {{ unmatched.length }}</div>
+                    <div><b>assignmentDone:</b> {{ assignmentDone }}</div>
+                    <div><b>selectedSection:</b> {{ selectedSection }}</div>
+                    <div><b>guanduFilename:</b> {{ guanduFilename }}</div>
+                    <div><b>sortBy:</b> {{ sortBy }}</div>
+                    <div><b>sortFields:</b> {{ sortFields.map(f=>f.key).join(',') }}</div>
+                </div>
+                <div v-if="members.length > 0" style="margin-top:8px; font-size:11px; color:#666">
+                    前3成员: {{ members.slice(0,3).map(m=>m.name||m).join(', ') }}
+                </div>
+                <div v-if="Object.keys(nameMap).length > 0" style="margin-top:4px; font-size:11px; color:#666">
+                    nameMap前3: {{ Object.entries(nameMap).slice(0,3).map(([k,v])=>k+'→'+v).join('; ') }}
+                </div>
+                <div v-if="debugLog.length > 0" style="margin-top:8px; max-height:150px; overflow-y:auto; font-size:11px; background:#fff; padding:8px; border-radius:4px; border:1px solid #ddd; font-family:monospace">
+                    <div v-for="(log, i) in debugLog" :key="i">{{ log }}</div>
                 </div>
             </div>
-
-            <!-- 步骤0: 导入数据 -->
-            <div class="card" v-show="currentStep === 0">
-                <div class="card-header">
-                    📥 导入数据
-                    <span :class="['badge', importReady ? '' : 'warn']">{{ importReady ? '✓ 就绪' : '未完成' }}</span>
-                </div>
-
+            
+            <!-- 步骤1: 导入数据 -->
+            <div class="card">
+                <div class="card-header">步骤1: 导入数据</div>
+                
                 <div class="form-row">
                     <div class="form-group">
                         <label>选择团</label>
@@ -311,250 +246,262 @@
                         </div>
                     </div>
                 </div>
-
+                
                 <div class="form-row">
                     <div class="form-group">
-                        <label>📊 属性表</label>
-                        <div class="btn-group" style="margin-top:0;margin-bottom:8px">
-                            <label class="btn btn-primary btn-sm" style="cursor:pointer">
-                                上传文件 <input type="file" @change="uploadStatsFile" accept=".xlsx,.csv,.md" style="display:none">
+                        <label>属性表 (步兵生命值)</label>
+                        <div class="btn-group" style="margin-top:0; margin-bottom:12px">
+                            <label class="btn btn-primary" style="cursor:pointer">
+                                📁 上传文件
+                                <input type="file" @change="uploadStatsFile" accept=".xlsx,.csv,.md" style="display:none">
                             </label>
-                            <button class="btn btn-secondary btn-sm" @click="reloadStats">加载默认</button>
+                            <button class="btn btn-secondary" @click="reloadStats">加载默认</button>
                         </div>
-                        <div v-if="statsLoaded" class="alert alert-success" style="margin-top:8px">
-                            ✅ {{ statsCount }} 条 <small v-if="statsFilename">({{ statsFilename }})</small>
+                        <div v-if="statsLoaded" class="alert alert-success">
+                            ✅ 已加载 {{ statsCount }} 条属性数据
+                            <small v-if="statsFilename"> ({{ statsFilename }})</small>
                         </div>
-                        <div v-else class="alert alert-info">支持 .xlsx / .csv / .md</div>
+                        <div v-else class="instruction">
+                            支持 .xlsx / .csv / .md 格式，需包含"成员名称"和"步兵生命值"列
+                        </div>
                     </div>
+                    
                     <div class="form-group">
-                        <label>📋 人员名单</label>
-                        <div class="btn-group" style="margin-top:0;margin-bottom:8px">
-                            <label class="btn btn-primary btn-sm" style="cursor:pointer">
-                                上传文件 <input type="file" @change="uploadGuanduFile" accept=".xlsx,.csv,.md" style="display:none">
+                        <label>人员名单</label>
+                        <div class="btn-group" style="margin-top:0; margin-bottom:12px">
+                            <label class="btn btn-primary" style="cursor:pointer">
+                                📁 上传文件
+                                <input type="file" @change="uploadGuanduFile" accept=".xlsx,.csv,.md" style="display:none">
                             </label>
-                            <button class="btn btn-secondary btn-sm" @click="loadGuandu">加载默认</button>
+                            <button class="btn btn-secondary" @click="loadGuandu">加载默认</button>
                         </div>
-                        <div v-if="members.length > 0" class="alert alert-success" style="margin-top:8px">
-                            ✅ {{ members.length }} 名 <small v-if="guanduFilename">({{ guanduFilename }})</small>
+                        <div v-if="members.length > 0" class="alert alert-success">
+                            ✅ 已加载 {{ members.length }} 名成员
+                            <small v-if="guanduFilename"> ({{ guanduFilename }})</small>
                         </div>
-                        <div v-else class="alert alert-info">支持 .xlsx / .csv / .md</div>
-                    </div>
-                </div>
-
-                <!-- 正式成员 -->
-                <div v-if="members.length > 0" style="margin-top:12px">
-                    <label style="color:#28a745;font-weight:bold;font-size:13px">正式成员 ({{ members.length }}人)</label>
-                    <div class="members-grid">
-                        <div v-for="(m, idx) in members" :key="'m-'+idx" class="member-chip">
-                            <span>{{ m }}</span>
-                            <span :class="['val', getValClass(getSortValue(m))]">{{ getSortValue(m) || '?' }}</span>
+                        <div v-else class="instruction">
+                            支持 .xlsx / .csv / .md 格式，或从官渡表加载
                         </div>
                     </div>
                 </div>
-
-                <!-- 候补 -->
-                <div v-if="benchMembers.length > 0" style="margin-top:12px">
-                    <label style="color:#6c757d;font-weight:bold;font-size:13px">候补 ({{ benchMembers.length }}人)</label>
-                    <div class="members-grid">
-                        <div v-for="(m, idx) in benchMembers" :key="'b-'+idx" class="member-chip" style="background:#f8f9fa;color:#666">
-                            {{ m }}
+                
+                <!-- 正式成员 + 候补人员 分区展示 -->
+                <div v-if="members.length > 0 || benchMembers.length > 0" style="margin-top:16px">
+                    <!-- 正式成员 -->
+                    <div v-if="members.length > 0">
+                        <label style="color:#28a745;font-weight:bold">📋 正式成员 ({{ members.length }}人) — 参与排序分配</label>
+                        <div class="members-grid">
+                            <div v-for="(m, idx) in members" :key="'m-'+idx" class="member-chip" style="background:#d4edda;border:1px solid #28a745">
+                                <span>{{ m }}</span>
+                                <span class="hp" :class="getHpClass(getSortValue(m))" v-if="getSortValue(m) > 0">{{ getSortValue(m) }}</span>
+                                <span class="hp hp-unknown" v-else>?</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="btn-group" style="justify-content:flex-end">
-                    <button class="btn btn-success" :disabled="!importReady" @click="goStep(1)">下一步 →</button>
+                    
+                    <!-- 候补人员 -->
+                    <div v-if="benchMembers.length > 0" style="margin-top:16px">
+                        <label style="color:#6c757d;font-weight:bold">📝 候补人员 ({{ benchMembers.length }}人) — 仅汇总输出</label>
+                        <div class="members-grid">
+                            <div v-for="(m, idx) in benchMembers" :key="'b-'+idx" class="member-chip" style="background:#f8f9fa;border:1px solid #6c757d">
+                                <span style="color:#666">{{ m }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <!-- 步骤1: 匹配成员 -->
-            <div class="card" v-show="currentStep === 1">
-                <div class="card-header">
-                    🔗 匹配成员
-                    <span :class="['badge', matchDone ? '' : 'warn']">{{ matchDone ? '✓ 已匹配' : '待匹配' }}</span>
-                </div>
-
+            
+            <!-- 步骤2: 匹配成员 -->
+            <div class="card" v-if="members.length > 0">
+                <div class="card-header">步骤2: 匹配成员</div>
+                
                 <div v-if="matchDone" class="alert alert-success">
-                    ✅ 已匹配 {{ Object.keys(nameMap).length }} 个成员
+                    ✅ 已自动匹配 {{ Object.keys(nameMap).length }} 个成员
                     <span v-if="unmatched.length > 0">，{{ unmatched.length }} 个待确认</span>
-                    <span v-else>，全部匹配！</span>
+                    <span v-else>，全部匹配成功！</span>
                 </div>
-
-                <!-- 未匹配列表 -->
-                <div v-if="unmatched.length > 0" style="margin-top:12px">
+                <div v-else-if="statsLoaded && members.length > 0" class="instruction">
+                    属性表和人员名单已加载，点击"开始匹配"进行匹配
+                </div>
+                <div v-else class="instruction">
+                    请先加载属性表和人员名单
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-secondary" @click="matchMembers" :disabled="!statsLoaded || members.length === 0">
+                        重新匹配
+                    </button>
+                </div>
+                
+                <!-- 未匹配成员 - 始终显示（非弹窗） -->
+                <div v-if="unmatched.length > 0" style="margin-top:16px">
                     <div class="alert alert-warning" style="margin-bottom:8px">
-                        ⚠️ {{ unmatched.length }} 个成员未匹配到属性数据
+                        ⚠️ {{ unmatched.length }} 个成员未匹配到属性数据，请手动选择对应成员
                     </div>
-                    <div v-for="(item, index) in unmatched" :key="index" class="match-item"
-                         style="background:#fff;border:1px solid #ffc107;border-radius:8px;margin-bottom:6px">
-                        <span class="orig">{{ item.original }}</span>
-                        <span>→</span>
-                        <select v-model="item.manualMatch" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:4px">
-                            <option value="">跳过</option>
+                    <div v-for="(item, index) in unmatched" :key="index" class="match-item" style="background:#fff;border:1px solid #ffc107;border-radius:8px;margin-bottom:8px">
+                        <span class="orig" style="min-width:120px;font-weight:bold">{{ item.original }}</span>
+                        <span>匹配为:</span>
+                        <select v-model="item.manualMatch" style="flex:1;min-width:150px;padding:8px;border:1px solid #ddd;border-radius:4px">
+                            <option value="">-- 跳过 --</option>
                             <option v-for="name in statNames" :key="name" :value="name">
                                 {{ name }} ({{ getStatLabel(name) }})
                             </option>
                         </select>
                     </div>
                     <div class="btn-group">
-                        <button class="btn btn-primary btn-sm" @click="confirmMatches">确认匹配</button>
-                        <button class="btn btn-secondary btn-sm" @click="skipAll">全部跳过</button>
+                        <button class="btn btn-primary" @click="confirmMatches">确认匹配</button>
+                        <button class="btn btn-secondary" @click="skipAll">全部跳过</button>
                     </div>
                 </div>
-
+                
+                <!-- 未匹配成员弹窗（保留用于初始自动弹窗） -->
+                <div v-if="showMatchModal && unmatched.length > 0" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">成员名称需要确认</div>
+                        <div v-for="(item, index) in unmatched" :key="index" class="match-item">
+                            <span class="orig">{{ item.original }}</span>
+                            <span>匹配为:</span>
+                            <select v-model="item.manualMatch">
+                                <option value="">-- 跳过 --</option>
+                                <option v-for="name in statNames" :key="name" :value="name">
+                                    {{ name }} ({{ getStatLabel(name) }})
+                                </option>
+                            </select>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" @click="skipAll">跳过未匹配</button>
+                            <button class="btn btn-primary" @click="confirmMatches">确认</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 步骤3: 分组配置 -->
+            <div class="card">
+                <div class="card-header">步骤3: 分组配置</div>
+                
+                <!-- 排序字段选择 -->
+                <div style="margin-bottom:16px;padding:12px;background:#e7f3ff;border-radius:4px;">
+                    <div style="font-weight:bold;color:#0056b3;margin-bottom:8px">📊 排序字段</div>
+                    <div style="display:flex;gap:20px;">
+                        <span v-for="field in sortFields" :key="field.key">
+                            <input type="radio" v-model="sortBy" :value="field.key" :id="'sort_' + field.key">
+                            <span style="vertical-align:middle">{{ field.label }}</span>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>HP阈值</label>
+                        <input type="number" v-model="threshold" min="0" max="2000" step="50">
+                        <small>低于此值的成员将分配到D17-D24 (默认900)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>随机种子</label>
+                        <input type="number" v-model="randomSeed" min="1" max="9999">
+                        <small>相同种子产生相同结果</small>
+                    </div>
+                </div>
+                
+                <!-- 手动指定队长 -->
+                <div class="manual-captains" style="margin: 16px 0; padding: 12px; background: #fff3cd; border-radius: 4px;">
+                    <label style="font-weight:bold;color:#856404">🎯 手动指定队长（可选）</label>
+                    <small style="display:block;color:#856404;margin-bottom:8px">手动指定的队长不参与自动排序</small>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                        <div v-for="pos in ['B1','B2','B3','B4','B5','B6']" :key="pos" style="display:flex;align-items:center;gap:4px">
+                            <span style="font-weight:bold;min-width:28px">{{ pos }}</span>
+                            <select v-model="manualCaptains[pos]" style="flex:1;padding:4px;font-size:13px">
+                                <option value="">-- 自动 --</option>
+                                <option v-for="m in members" :key="m" :value="m">{{ m }}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="btn-group">
-                    <button class="btn btn-secondary" @click="goStep(0)">← 上一步</button>
-                    <button class="btn btn-secondary" @click="matchMembers" :disabled="!statsLoaded || members.length === 0">重新匹配</button>
-                    <button class="btn btn-success" :disabled="!matchDone" @click="goStep(2)">下一步 →</button>
+                    <button class="btn btn-success" @click="runAssignment" :disabled="!statsLoaded || members.length === 0">
+                        执行分配
+                    </button>
                 </div>
             </div>
-
-            <!-- 步骤2: 分配配置 -->
-            <div class="card" v-show="currentStep === 2">
-                <div class="card-header">⚙️ 分配配置</div>
-
-                <div class="config-grid">
-                    <div class="config-block">
-                        <h4>📊 排序字段</h4>
-                        <div class="radio-group">
-                            <label v-for="field in sortFields" :key="field.key">
-                                <input type="radio" v-model="sortBy" :value="field.key">
-                                <span>{{ field.label }}</span>
-                            </label>
-                        </div>
+            
+            <!-- 步骤4: 预览 -->
+            <div class="card" v-if="assignmentDone">
+                <div class="card-header">步骤4: 预览与导出</div>
+                
+                <div class="stats-bar">
+                    <div class="stat-item">
+                        <div class="value">{{ members.length }}</div>
+                        <div class="label">总人数</div>
                     </div>
-                    <div class="config-block">
-                        <h4>🎯 手动指定队长</h4>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-                            <div v-for="pos in ['B1','B2','B3','B4','B5','B6']" :key="pos" style="display:flex;align-items:center;gap:4px">
-                                <span style="font-weight:bold;min-width:24px;font-size:12px">{{ pos }}</span>
-                                <select v-model="manualCaptains[pos]" style="flex:1;padding:4px;font-size:12px">
-                                    <option value="">自动</option>
-                                    <option v-for="m in members" :key="m" :value="m">{{ m }}</option>
-                                </select>
-                            </div>
-                        </div>
+                    <div class="stat-item">
+                        <div class="value">{{ matchedCount }}</div>
+                        <div class="label">已匹配</div>
                     </div>
-                    <div class="config-block">
-                        <h4>🎚️ 参数</h4>
-                        <div style="margin-bottom:8px">
-                            <label style="font-size:12px">HP阈值 (低于此值进D17-D24)</label>
-                            <input type="number" v-model="threshold" min="0" max="2000" step="50" style="padding:6px">
-                        </div>
-                        <div>
-                            <label style="font-size:12px">随机种子</label>
-                            <input type="number" v-model="randomSeed" min="1" max="9999" style="padding:6px">
-                        </div>
+                    <div class="stat-item">
+                        <div class="value">{{ unmatchedCount }}</div>
+                        <div class="label">未匹配</div>
                     </div>
                 </div>
-
-                <div class="btn-group" style="justify-content:space-between">
-                    <button class="btn btn-secondary" @click="goStep(1)">← 上一步</button>
-                    <button class="btn btn-success" @click="runAssignment" :disabled="!statsLoaded || members.length === 0">⚡ 执行分配</button>
-                </div>
-            </div>
-
-            <!-- 步骤3: 结果预览 -->
-            <div class="card" v-show="currentStep === 3">
-                <div class="card-header">
-                    📋 分配结果
-                    <span v-if="assignmentDone" class="badge">✓ 已完成</span>
-                </div>
-
-                <div v-if="!assignmentDone" class="alert alert-info">请先在"分配配置"中执行分配</div>
-
-                <template v-if="assignmentDone">
-                    <!-- 实力对比 -->
-                    <div class="strength-bar" style="margin-bottom:20px">
-                        <h4 style="font-size:14px;color:#1a1a2e;margin-bottom:10px">📊 队伍实力对比 (平均{{ sortLabel }})</h4>
-                        <div v-for="t in teamStrength" :key="t.name" class="strength-row">
-                            <span class="team-label">{{ t.name }}</span>
-                            <div class="bar-bg">
-                                <div class="bar-fill" :style="{width: t.pct + '%', background: t.color}">{{ t.avg }}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 队伍卡片 -->
-                    <div class="team-cards">
-                        <div v-for="(team, idx) in teamResults" :key="team.name" class="team-card">
-                            <div :class="['team-card-header', 't' + (idx+1)]">
-                                <span>{{ team.name }}</span>
-                                <span style="font-size:12px">队长: {{ team.captain }}</span>
-                            </div>
-                            <div class="team-card-body">
-                                <div v-for="m in team.members" :key="m.pos" class="team-member-row clickable" @click="openSwapPanel(team.name, m.pos, m.name)">
-                                    <span class="pos">{{ m.pos }}</span>
-                                    <span class="name">{{ m.name }}</span>
-                                    <span :class="['score', getValClass(m.score)]">{{ m.score || '-' }}</span>
-                                    <span class="swap-hint">↔</span>
-                                </div>
-                            </div>
-                            <div class="team-card-footer">
-                                <span>平均{{ sortLabel }}: {{ team.avg }}</span>
-                                <span>人数: {{ team.members.length }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="btn-group" style="margin-top:20px;justify-content:space-between">
-                        <button class="btn btn-secondary" @click="goStep(2)">← 上一步</button>
-                        <div style="display:flex;gap:10px">
-                            <button class="btn btn-success" @click="exportExcel">📥 导出Excel</button>
-                            <button class="btn btn-secondary" @click="resetAll">🔄 重新开始</button>
-                        </div>
-                    </div>
-                </template>
-            </div>
-
-            <!-- 交换面板 -->
-            <div v-if="swapPanel.show" class="swap-panel-overlay" @click.self="swapPanel.show=false">
-                <div class="swap-panel">
-                    <div class="swap-panel-header">
-                        <span>🔄 调整成员</span>
-                        <button class="btn-close" @click="swapPanel.show=false">×</button>
-                    </div>
-                    <div class="swap-panel-body">
-                        <div class="swap-source">
-                            <span class="label">选中成员:</span>
-                            <span class="name">{{ swapPanel.sourceName }}</span>
-                            <span class="pos">({{ swapPanel.sourcePos }})</span>
-                        </div>
-                        <div class="swap-target">
-                            <span class="label">选择目标位置:</span>
-                            <div class="target-teams">
-                                <div v-for="team in teamResults" :key="team.name" class="target-team">
-                                    <div class="team-title">{{ team.name }}</div>
-                                    <div class="team-slots">
-                                        <div 
-                                            v-for="m in team.members" 
-                                            :key="m.pos"
-                                            class="slot"
-                                            :class="{active: m.pos === swapPanel.sourcePos, disabled: m.pos === swapPanel.sourcePos}"
-                                            @click="doSwap(m.pos, m.name)"
-                                        >
-                                            <span class="slot-pos">{{ m.pos }}</span>
-                                            <span class="slot-name">{{ m.name || '(空)' }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                
+                <h3 style="margin: 16px 0 8px">B列分配 (队长)</h3>
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>位置</th>
+                            <th>队长</th>
+                            <th v-for="field in sortFields" :key="field.key">{{ field.label }}</th>
+                            <th>排序</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="pos in bPositions" :key="pos">
+                            <td><strong>{{ pos }}</strong></td>
+                            <td>{{ bAssign[pos] ? bAssign[pos].original : '' }}</td>
+                            <td v-for="field in sortFields" :key="field.key" :class="field.key === 'hp' ? getHpClass(bAssign[pos] ? bAssign[pos].hp : 0) : ''">{{ bAssign[pos] ? (bAssign[pos][field.key] || '-') : '-' }}</td>
+                            <td>{{ getRank(pos) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <h3 style="margin: 20px 0 8px">D列分配 (队员)</h3>
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>位置</th>
+                            <th>队员</th>
+                            <th v-for="field in sortFields" :key="field.key">{{ field.label }}</th>
+                            <th>所属队</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="pos in dPositions" :key="pos">
+                            <td><strong>{{ pos }}</strong></td>
+                            <td>{{ dAssign[pos] ? dAssign[pos].original : '' }}</td>
+                            <td v-for="field in sortFields" :key="field.key" :class="field.key === 'hp' ? getHpClass(dAssign[pos] ? dAssign[pos].hp : 0) : ''">{{ dAssign[pos] ? (dAssign[pos][field.key] || '-') : '-' }}</td>
+                            <td>{{ getTeam(pos) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="btn-group">
+                    <button class="btn btn-success" @click="exportExcel">导出Excel</button>
+                    <button class="btn btn-secondary" @click="resetAll">重新开始</button>
                 </div>
             </div>
-
+            
             <!-- 候补名单 -->
-            <div class="card" v-if="benchMembers.length > 0" style="margin-top:8px">
-                <div class="card-header" style="font-size:14px">📝 候补 ({{ benchMembers.length }}人)</div>
+            <div class="card" v-if="benchMembers.length > 0">
+                <div class="card-header">候补名单 ({{ benchMembers.length }}人)</div>
                 <div class="members-grid">
-                    <div v-for="(m, idx) in benchMembers" :key="idx" class="member-chip" style="background:#f0f0f0;color:#888;font-size:12px">
-                        {{ m }}
+                    <div v-for="(m, idx) in benchMembers" :key="idx" class="member-chip">
+                        <span>{{ m }}</span>
                     </div>
                 </div>
             </div>
         </div>
-
+        
         <!-- Loading -->
         <div v-if="loading" class="loading">
             <div class="loading-content">
@@ -562,448 +509,522 @@
                 <div>{{ loadingText }}</div>
             </div>
         </div>
+
+
     </div>
-
+    
     <script>
-    if (typeof Vue === 'undefined') {
-        document.getElementById('app').innerHTML = '<div style="padding:40px;color:#fff;text-align:center"><h1>Vue 加载失败</h1><p>请刷新页面重试</p></div>';
-    } else {
-    const { createApp, ref, computed } = Vue;
+        try {
+            const { createApp, ref, computed } = Vue;
+        createApp({
+            setup() {
+                const sections = ref([]);
+                const selectedSection = ref('');
+                const stats = ref({});
+                const statsLoaded = ref(false);
+                const statsCount = ref(0);
+                const statsFilename = ref('');
+                const members = ref([]);
+                const benchMembers = ref([]);
+                const teamsData = ref({});
+                const guanduFilename = ref('');
+                const showMatchModal = ref(false);
+                const unmatched = ref([]);
+                const nameMap = ref({});
+                const threshold = ref(900);
+                const randomSeed = ref(42);
+                const manualCaptains = ref({B1:'',B2:'',B3:'',B4:'',B5:'',B6:''});
+                const sortBy = ref('hp');  // 动态选择: 'hp' / 'total' / 'power'
+                const sortFields = ref([{key: 'hp', label: '步兵生命值'}]);  // 从属性表动态检测
+                const matchDone = ref(false);
+                const assignmentDone = ref(false);
+                const loading = ref(false);
+                const loadingText = ref('加载中...');
+                const bAssign = ref({});
+                const dAssign = ref({});
+                const sortedMembers = ref([]);
+                const debugLog = ref([]);
+                const _dlog = (msg) => {
+                    const t = new Date().toLocaleTimeString();
+                    const line = t + ' ' + msg;
+                    debugLog.value.push(line);
+                    console.log(line);
+                };
+                
+                const bPositions = ['B1','B2','B3','B4','B5','B6'];
+                const dPositions = ['D1','D2','D3','D4','D5','D6','D7','D8',
+                                   'D9','D10','D11','D12','D13','D14','D15','D16',
+                                   'D17','D18','D19','D20','D21','D22','D23','D24'];
+                
+                const statNames = computed(() => Object.keys(stats.value));
+                const matchedCount = computed(() => members.value.length - unmatched.value.length);
+                const unmatchedCount = computed(() => unmatched.value.length);
+                
+                const getStatHp = (name) => {
+                    const s = stats.value[name];
+                    return s ? s.hp : 0;
+                };
+                
+                const getStatTotal = (name) => {
+                    const s = stats.value[name];
+                    return s ? s.total : 0;
+                };
+                
+                const getStatPower = (name) => {
+                    const s = stats.value[name];
+                    return s ? s.power : 0;
+                };
 
-    const app = createApp({
-        setup() {
-            const steps = ['导入数据', '匹配成员', '分配配置', '结果预览'];
-            const currentStep = ref(0);
-            const maxReachedStep = ref(0);
-            const goStep = (n) => { currentStep.value = n; if (n > maxReachedStep.value) maxReachedStep.value = n; };
-
-            const sections = ref([]);
-            const selectedSection = ref('');
-            const stats = ref({});
-            const statsLoaded = ref(false);
-            const statsCount = ref(0);
-            const statsFilename = ref('');
-            const members = ref([]);
-            const benchMembers = ref([]);
-            const teamsData = ref({});
-            const benchTask = ref('');
-            const guanduFilename = ref('');
-            const unmatched = ref([]);
-            const nameMap = ref({});
-            const threshold = ref(900);
-            const randomSeed = ref(42);
-            const manualCaptains = ref({B1:'',B2:'',B3:'',B4:'',B5:'',B6:''});
-            const sortBy = ref('hp');
-            const sortFields = ref([{key:'hp',label:'步兵生命值'}]);
-            const matchDone = ref(false);
-            const assignmentDone = ref(false);
-            const loading = ref(false);
-            const loadingText = ref('加载中...');
-            const bAssign = ref({});
-            const dAssign = ref({});
-            const sortedMembers = ref([]);
-            
-            // 交换面板状态
-            const swapPanel = ref({
-                show: false,
-                sourceTeam: '',
-                sourcePos: '',
-                sourceName: ''
-            });
-
-            const importReady = computed(() => statsLoaded.value && members.value.length > 0);
-            const statNames = computed(() => Object.keys(stats.value));
-            const sortLabel = computed(() => {
-                const f = sortFields.value.find(f => f.key === sortBy.value);
-                return f ? f.label : '值';
-            });
-
-            const teamResults = computed(() => {
-                if (!assignmentDone.value) return [];
-                const teams = [];
-                const teamColors = ['#ffd700','#4fc3f7','#81c784','#e57373','#ba68c8','#ff8a65'];
-                // 实际分配逻辑：1队2队各8队员，3-6队各2队员
-                const teamMap = [
-                    { name: '1队', bKey: 'B1', dKeys: ['D1','D2','D3','D4','D9','D10','D11','D12'] },
-                    { name: '2队', bKey: 'B2', dKeys: ['D5','D6','D7','D8','D13','D14','D15','D16'] },
-                    { name: '3队', bKey: 'B3', dKeys: ['D17','D18'] },
-                    { name: '4队', bKey: 'B4', dKeys: ['D19','D20'] },
-                    { name: '5队', bKey: 'B5', dKeys: ['D21','D22'] },
-                    { name: '6队', bKey: 'B6', dKeys: ['D23','D24'] },
-                ];
-                for (let i = 0; i < teamMap.length; i++) {
-                    const t = teamMap[i];
-                    const captainData = bAssign.value[t.bKey];
-                    const captain = captainData ? captainData.original : '';
-                    const captainScore = captainData ? (captainData[sortBy.value] || 0) : 0;
-                    const memberList = [{ pos: t.bKey, name: captain, score: Math.round(captainScore) }];
-                    let totalScore = captainScore;
-                    let count = captain ? 1 : 0;
-                    for (const dk of t.dKeys) {
-                        const d = dAssign.value[dk];
-                        if (d) {
-                            const s = d[sortBy.value] || 0;
-                            memberList.push({ pos: dk, name: d.original, score: Math.round(s) });
-                            totalScore += s;
-                            count++;
-                        }
+                const getStatLabel = (name) => {
+                    if (!sortFields.value.length) return '';
+                    const parts = [];
+                    for (const f of sortFields.value) {
+                        const s = stats.value[name];
+                        const v = s ? (s[f.key] || 0) : 0;
+                        parts.push(v);
                     }
-                    teams.push({
-                        name: t.name, captain, members: memberList,
-                        avg: count > 0 ? Math.round(totalScore / count) : 0,
-                        total: Math.round(totalScore), color: teamColors[i],
-                    });
-                }
-                return teams;
-            });
-
-            const teamStrength = computed(() => {
-                const results = teamResults.value;
-                if (!results.length) return [];
-                const maxAvg = Math.max(...results.map(r => r.avg), 1);
-                return results.map(r => ({
-                    name: r.name, avg: r.avg,
-                    pct: Math.round(r.avg / maxAvg * 100), color: r.color,
-                }));
-            });
-
-            const getSortValue = (name) => {
-                const mapped = nameMap.value[name] || name;
-                const s = stats.value[mapped];
-                if (!s) return 0;
-                return s[sortBy.value] || 0;
-            };
-
-            const getStatLabel = (name) => {
-                const s = stats.value[name];
-                if (!s || !sortFields.value.length) return '';
-                return sortFields.value.map(f => s[f.key] || 0).join(' / ');
-            };
-
-            const getValClass = (val) => {
-                if (!val) return 'val-unknown';
-                if (val >= 1000) return 'val-high';
-                if (val >= 700) return 'val-mid';
-                return 'val-low';
-            };
-
-            const selectSection = async (section) => {
-                selectedSection.value = section;
-                await loadGuandu();
-            };
-
-            const reloadStats = async () => {
-                loading.value = true; loadingText.value = '加载属性表...';
-                try {
-                    const res = await fetch('/api/load_stats');
-                    const json = await res.json();
-                    if (json.success) {
-                        stats.value = json.stats; statsLoaded.value = true;
-                        statsCount.value = json.count; statsFilename.value = '默认';
-                        if (json.sort_fields?.length) {
-                            sortFields.value = json.sort_fields;
-                            if (!sortFields.value.some(f => f.key === sortBy.value))
-                                sortBy.value = sortFields.value[0].key;
+                    return parts.join(' / ');
+                };
+                
+                const getHp = (name) => {
+                    const mapped = nameMap.value[name] || name;
+                    const s = stats.value[mapped];
+                    return s ? s.hp : 0;
+                };
+                
+                // 根据当前排序字段获取成员的对应属性值
+                const getSortValue = (name) => {
+                    const mapped = nameMap.value[name] || name;
+                    const s = stats.value[mapped];
+                    if (!s) return 0;
+                    const key = sortBy.value;
+                    return s[key] || 0;
+                };
+                
+                const getHpClass = (hp) => {
+                    if (!hp) return 'hp-unknown';
+                    if (hp >= 1000) return 'hp-high';
+                    if (hp >= 700) return 'hp-mid';
+                    return 'hp-low';
+                };
+                
+                const selectSection = async (section) => {
+                    selectedSection.value = section;
+                    await loadGuandu();
+                };
+                
+                const reloadStats = async () => {
+                    loading.value = true;
+                    loadingText.value = '加载属性表...';
+                    try {
+                        const res = await fetch('/api/load_stats');
+                        const json = await res.json();
+                        if (json.success) {
+                            stats.value = json.stats;
+                            statsLoaded.value = true;
+                            statsCount.value = json.count;
+                            statsFilename.value = '默认文件';
+                            // 动态更新排序字段
+                            if (json.sort_fields && json.sort_fields.length) {
+                                sortFields.value = json.sort_fields;
+                                // 如果当前sortBy不在可用字段中，切换到第一个
+                                if (!sortFields.value.some(f => f.key === sortBy.value)) {
+                                    sortBy.value = sortFields.value[0].key;
+                                }
+                            }
                         }
-                        if (members.value.length) await doAutoMatch();
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        loading.value = false;
                     }
-                } catch (e) { console.error(e); }
-                finally { loading.value = false; }
-            };
-
-            const uploadStatsFile = async (event) => {
-                const file = event.target.files[0]; if (!file) return;
-                loading.value = true; loadingText.value = '上传属性表...';
-                const fd = new FormData(); fd.append('file', file);
-                try {
-                    const res = await fetch('/api/upload_stats', { method: 'POST', body: fd });
-                    const json = await res.json();
-                    if (json.success) {
-                        stats.value = json.stats; statsLoaded.value = true;
-                        statsCount.value = json.count; statsFilename.value = json.filename;
-                        if (json.sort_fields?.length) {
-                            sortFields.value = json.sort_fields;
-                            if (!sortFields.value.some(f => f.key === sortBy.value))
-                                sortBy.value = sortFields.value[0].key;
+                };
+                
+                const uploadStatsFile = async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    loading.value = true;
+                    loadingText.value = '上传并解析属性表...';
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    try {
+                        const res = await fetch('/api/upload_stats', { method: 'POST', body: formData });
+                        const json = await res.json();
+                        if (json.success) {
+                            stats.value = json.stats;
+                            statsLoaded.value = true;
+                            statsCount.value = json.count;
+                            statsFilename.value = json.filename;
+                            // 动态更新排序字段
+                            if (json.sort_fields && json.sort_fields.length) {
+                                sortFields.value = json.sort_fields;
+                                if (!sortFields.value.some(f => f.key === sortBy.value)) {
+                                    sortBy.value = sortFields.value[0].key;
+                                }
+                            }
+                            // 如果已有人员名单，自动匹配
+                            await doAutoMatch();
+                        } else {
+                            alert('上传失败: ' + json.error);
                         }
-                        if (members.value.length) await doAutoMatch();
-                    } else { alert('上传失败: ' + json.error); }
-                } catch (e) { alert('上传失败'); }
-                finally { loading.value = false; event.target.value = ''; }
-            };
-
-            const loadGuandu = async () => {
-                loading.value = true; loadingText.value = '加载官渡表...';
-                try {
-                    const res = await fetch('/api/load_guandu?section=' + encodeURIComponent(selectedSection.value));
-                    const json = await res.json();
-                    if (json.success) {
-                        teamsData.value = json.teams; benchMembers.value = json.bench;
-                        members.value = json.members; guanduFilename.value = '默认';
-                        benchTask.value = json.bench_task || '';
-                        if (statsLoaded.value) await doAutoMatch();
+                    } catch (e) {
+                        console.error(e);
+                        alert('上传失败');
+                    } finally {
+                        loading.value = false;
+                        event.target.value = '';
                     }
-                } catch (e) { console.error(e); }
-                finally { loading.value = false; }
-            };
-
-            const uploadGuanduFile = async (event) => {
-                const file = event.target.files[0]; if (!file) return;
-                loading.value = true; loadingText.value = '上传人员名单...';
-                const fd = new FormData(); fd.append('file', file); fd.append('section', selectedSection.value);
-                try {
-                    const res = await fetch('/api/upload_guandu', { method: 'POST', body: fd });
-                    const json = await res.json();
-                    if (json.success) {
-                        teamsData.value = json.teams; benchMembers.value = json.bench;
-                        members.value = json.members; guanduFilename.value = json.filename;
-                        benchTask.value = json.bench_task || '';
-                        if (statsLoaded.value) await doAutoMatch();
-                    } else { alert('上传失败: ' + json.error); }
-                } catch (e) { alert('上传失败'); }
-                finally { loading.value = false; event.target.value = ''; }
-            };
-
-            const doAutoMatch = async () => {
-                if (!statsLoaded.value || !members.value.length) return;
-                try {
-                    const res = await fetch('/api/match_members', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            members: JSON.parse(JSON.stringify(members.value)),
-                            stats: JSON.parse(JSON.stringify(stats.value))
-                        })
-                    });
-                    const json = await res.json();
-                    if (json.success) {
-                        nameMap.value = {};
-                        const ulist = [];
-                        for (const r of json.results) {
-                            if (r.status !== 'not_found') nameMap.value[r.original] = r.matched;
-                            else ulist.push({...r, manualMatch: ''});
+                };
+                
+                const loadGuandu = async () => {
+                    loading.value = true;
+                    loadingText.value = '加载官渡表...';
+                    try {
+                        const res = await fetch('/api/load_guandu?section=' + encodeURIComponent(selectedSection.value));
+                        const json = await res.json();
+                        if (json.success) {
+                            teamsData.value = json.teams;
+                            benchMembers.value = json.bench;
+                            members.value = json.members;
+                            guanduFilename.value = '默认文件';
+                            // 自动匹配
+                            await doAutoMatch();
                         }
-                        unmatched.value = ulist;
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+                
+                const uploadGuanduFile = async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    _dlog('uploadGuanduFile: file=' + file.name + ' section=' + selectedSection.value);
+                    
+                    loading.value = true;
+                    loadingText.value = '上传并解析人员名单...';
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('section', selectedSection.value);
+                    
+                    try {
+                        const res = await fetch('/api/upload_guandu', { method: 'POST', body: formData });
+                        const json = await res.json();
+                        _dlog('uploadGuandu 响应: status=' + res.status + ' success=' + json.success + ' members=' + (json.members ? json.members.length : 'null') + ' error=' + (json.error || 'none'));
+                        if (json.success) {
+                            teamsData.value = json.teams;
+                            benchMembers.value = json.bench;
+                            members.value = json.members;
+                            guanduFilename.value = json.filename;
+                            _dlog('赋值后 members=' + members.value.length);
+                            // 自动匹配
+                            await doAutoMatch();
+                        } else {
+                            _dlog('上传失败: ' + json.error);
+                            alert('上传失败: ' + json.error);
+                        }
+                    } catch (e) {
+                        _dlog('上传异常: ' + e.message);
+                        console.error(e);
+                        alert('上传失败');
+                    } finally {
+                        loading.value = false;
+                        event.target.value = '';
+                    }
+                };
+                
+                // 自动匹配（内部函数）
+                const doAutoMatch = async () => {
+                    _dlog('doAutoMatch: statsLoaded=' + statsLoaded.value + ' members=' + members.value.length);
+                    if (!statsLoaded.value || members.value.length === 0) {
+                        _dlog('doAutoMatch 跳过: 条件不满足');
+                        return;
+                    }
+                    try {
+                        // 剥离 Vue 响应式代理，避免 JSON 序列化问题
+                        const res = await fetch('/api/match_members', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                members: JSON.parse(JSON.stringify(members.value)),
+                                stats: JSON.parse(JSON.stringify(stats.value))
+                            })
+                        });
+                        const json = await res.json();
+                        if (json.success) {
+                            nameMap.value = {};
+                            const unmatchedList = [];
+                            for (const r of json.results) {
+                                if (r.status !== 'not_found') {
+                                    nameMap.value[r.original] = r.matched;
+                                } else {
+                                    unmatchedList.push({...r, manualMatch: ''});
+                                }
+                            }
+                            unmatched.value = unmatchedList;
+                            matchDone.value = true;
+                        }
+                    } catch (e) {
+                        console.error('[doAutoMatch] error:', e);
                         matchDone.value = true;
                     }
-                } catch (e) { console.error(e); matchDone.value = true; }
-            };
-
-            const matchMembers = async () => {
-                loading.value = true; loadingText.value = '匹配成员...';
-                try {
-                    const res = await fetch('/api/match_members', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ members: members.value, stats: stats.value })
-                    });
-                    const json = await res.json();
-                    if (json.success) {
-                        unmatched.value = (json.unmatched || []).map(u => ({...u, manualMatch: ''}));
-                        nameMap.value = {};
-                        for (const r of json.results) {
-                            if (r.status !== 'not_found') nameMap.value[r.original] = r.matched;
+                };
+                
+                const matchMembers = async () => {
+                    loading.value = true;
+                    loadingText.value = '匹配成员...';
+                    try {
+                        const res = await fetch('/api/match_members', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ members: members.value, stats: stats.value })
+                        });
+                        const json = await res.json();
+                        if (json.success) {
+                            unmatched.value = json.unmatched.map(u => ({
+                                ...u,
+                                manualMatch: ''
+                            }));
+                            nameMap.value = {};
+                            for (const r of json.results) {
+                                if (r.status !== 'not_found') {
+                                    nameMap.value[r.original] = r.matched;
+                                }
+                            }
+                            matchDone.value = true;
+                            if (unmatched.value.length > 0) {
+                                showMatchModal.value = true;
+                            } else {
+                                alert('所有成员匹配成功！');
+                            }
                         }
-                        matchDone.value = true;
-                        if (unmatched.value.length === 0) alert('所有成员匹配成功！');
+                    } catch (e) {
+                        console.error('[matchMembers] error:', e);
+                        alert('匹配失败: ' + e.message);
+                    } finally {
+                        loading.value = false;
                     }
-                } catch (e) { alert('匹配失败: ' + e.message); }
-                finally { loading.value = false; }
-            };
-
-            const skipAll = () => {
-                for (const item of unmatched.value) nameMap.value[item.original] = null;
-            };
-
-            const confirmMatches = () => {
-                const still = [];
-                for (const item of unmatched.value) {
-                    if (item.manualMatch) nameMap.value[item.original] = item.manualMatch;
-                    else { nameMap.value[item.original] = null; still.push(item); }
-                }
-                unmatched.value = still;
-            };
-
-            const runAssignment = async () => {
-                if (!importReady.value) { alert('请先加载数据'); return; }
-                loading.value = true; loadingText.value = '执行分配...';
-                try {
-                    const res = await fetch('/api/assign', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            members: JSON.parse(JSON.stringify(members.value)),
-                            stats: JSON.parse(JSON.stringify(stats.value)),
-                            name_map: JSON.parse(JSON.stringify(nameMap.value)),
-                            threshold: threshold.value, seed: randomSeed.value,
-                            manual_captains: JSON.parse(JSON.stringify(manualCaptains.value)),
-                            sort_by: sortBy.value
-                        })
-                    });
-                    const json = await res.json();
-                    if (json.success) {
-                        bAssign.value = json.b_assign;
-                        dAssign.value = json.d_assign;
-                        sortedMembers.value = json.sorted;
-                        assignmentDone.value = true;
-                        goStep(3);
-                    } else { alert('分配失败: ' + (json.error || '未知错误')); }
-                } catch (e) { alert('分配失败: ' + e.message); }
-                finally { loading.value = false; }
-            };
-
-            const exportExcel = async () => {
-                loading.value = true; loadingText.value = '生成Excel...';
-                try {
-                    const res = await fetch('/api/export', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            b_assign: JSON.parse(JSON.stringify(bAssign.value)), d_assign: JSON.parse(JSON.stringify(dAssign.value)),
-                            sorted: JSON.parse(JSON.stringify(sortedMembers.value)), name_map: JSON.parse(JSON.stringify(nameMap.value)),
-                            teams_data: JSON.parse(JSON.stringify(teamsData.value)), section: selectedSection.value,
-                            bench_list: JSON.parse(JSON.stringify(benchMembers.value)),
-                            bench_task: benchTask.value
-                        })
-                    });
-                    const json = await res.json();
-                    if (json.success) {
+                };
+                
+                const skipAll = () => {
+                    for (const item of unmatched.value) {
+                        nameMap.value[item.original] = null;
+                    }
+                    showMatchModal.value = false;
+                };
+                
+                const confirmMatches = () => {
+                    const stillUnmatched = [];
+                    for (const item of unmatched.value) {
+                        if (item.manualMatch) {
+                            nameMap.value[item.original] = item.manualMatch;
+                        } else {
+                            nameMap.value[item.original] = null;  // 标记为跳过
+                            stillUnmatched.push(item);
+                        }
+                    }
+                    unmatched.value = stillUnmatched;
+                    showMatchModal.value = false;
+                };
+                
+                const runAssignment = async () => {
+                    if (!statsLoaded.value || members.value.length === 0) {
+                        alert('请先加载属性表和人员名单');
+                        return;
+                    }
+                    loading.value = true;
+                    loadingText.value = '执行分配...';
+                    try {
+                        const res = await fetch('/api/assign', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                members: JSON.parse(JSON.stringify(members.value)),
+                                stats: JSON.parse(JSON.stringify(stats.value)),
+                                name_map: JSON.parse(JSON.stringify(nameMap.value)),
+                                threshold: threshold.value,
+                                seed: randomSeed.value,
+                                manual_captains: JSON.parse(JSON.stringify(manualCaptains.value)),
+                                sort_by: sortBy.value
+                            })
+                        });
+                        const json = await res.json();
+                        if (json.success) {
+                            bAssign.value = json.b_assign;
+                            dAssign.value = json.d_assign;
+                            sortedMembers.value = json.sorted;
+                            assignmentDone.value = true;
+                        } else {
+                            alert('分配失败: ' + (json.error || '未知错误'));
+                        }
+                    } catch (e) {
+                        alert('分配失败: ' + e.message);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+                
+                const getRank = (pos) => {
+                    const m = bAssign.value[pos];
+                    if (!m) return '-';
+                    const idx = sortedMembers.value.findIndex(sm => sm.original === m.original);
+                    return idx >= 0 ? idx + 1 : '-';
+                };
+                
+                const getTeam = (pos) => {
+                    const dIdx = parseInt(pos.replace('D', ''));
+                    if (dIdx === 1 || (dIdx >= 2 && dIdx <= 8)) return '1队(A组)';
+                    if (dIdx === 9 || (dIdx >= 10 && dIdx <= 16)) return '2队(B组)';
+                    if (dIdx >= 17 && dIdx <= 24) return '其他队';
+                    return '';
+                };
+                
+                const exportExcel = async () => {
+                    loading.value = true;
+                    loadingText.value = '生成Excel...';
+                    try {
+                        // 1. POST 生成文件
+                        const res = await fetch('/api/export', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                b_assign: bAssign.value,
+                                d_assign: dAssign.value,
+                                sorted: sortedMembers.value,
+                                name_map: nameMap.value,
+                                teams_data: teamsData.value,
+                                section: selectedSection.value,
+                                bench_list: benchMembers.value
+                            })
+                        });
+                        const json = await res.json();
+                        
+                        if (!json.success) {
+                            alert('生成失败: ' + (json.error || '未知错误'));
+                            return;
+                        }
+                        
+                        // 2. GET 下载文件
+                        loadingText.value = '下载中...';
                         const link = document.createElement('a');
                         link.href = '/download/' + encodeURIComponent(json.filename);
                         link.download = json.filename;
-                        document.body.appendChild(link); link.click(); document.body.removeChild(link);
-                    } else { alert('导出失败: ' + (json.error || '未知错误')); }
-                } catch (e) { alert('导出失败'); }
-                finally { loading.value = false; }
-            };
-
-            const resetAll = () => {
-                assignmentDone.value = false;
-                bAssign.value = {}; dAssign.value = {}; sortedMembers.value = [];
-                manualCaptains.value = {B1:'',B2:'',B3:'',B4:'',B5:'',B6:''};
-                currentStep.value = 0; maxReachedStep.value = 0;
-            };
-            
-            // 打开交换面板
-            const openSwapPanel = (teamName, pos, name) => {
-                swapPanel.value = {
-                    show: true,
-                    sourceTeam: teamName,
-                    sourcePos: pos,
-                    sourceName: name
-                };
-            };
-            
-            // 执行交换
-            const doSwap = (targetPos, targetName) => {
-                if (targetPos === swapPanel.value.sourcePos) return;
-                
-                const sourcePos = swapPanel.value.sourcePos;
-                const sourceName = swapPanel.value.sourceName;
-                
-                // 判断是队长位还是队员位
-                const isCaptain = (pos) => pos.startsWith('B');
-                const isMember = (pos) => pos.startsWith('D');
-                
-                // 获取源数据和目标数据
-                let sourceData, targetData;
-                
-                if (isCaptain(sourcePos)) {
-                    sourceData = bAssign.value[sourcePos];
-                } else {
-                    sourceData = dAssign.value[sourcePos];
-                }
-                
-                if (isCaptain(targetPos)) {
-                    targetData = bAssign.value[targetPos];
-                } else {
-                    targetData = dAssign.value[targetPos];
-                }
-                
-                // 交换
-                if (isCaptain(sourcePos) && isCaptain(targetPos)) {
-                    // 队长换队长
-                    bAssign.value[sourcePos] = targetData;
-                    bAssign.value[targetPos] = sourceData;
-                } else if (isMember(sourcePos) && isMember(targetPos)) {
-                    // 队员换队员
-                    dAssign.value[sourcePos] = targetData;
-                    dAssign.value[targetPos] = sourceData;
-                } else if (isCaptain(sourcePos) && isMember(targetPos)) {
-                    // 队长换队员
-                    bAssign.value[sourcePos] = targetData;
-                    dAssign.value[targetPos] = sourceData;
-                } else if (isMember(sourcePos) && isCaptain(targetPos)) {
-                    // 队员换队长
-                    dAssign.value[sourcePos] = targetData;
-                    bAssign.value[targetPos] = sourceData;
-                }
-                
-                // 强制触发 Vue 响应式更新
-                bAssign.value = {...bAssign.value};
-                dAssign.value = {...dAssign.value};
-                
-                // 关闭面板
-                swapPanel.value.show = false;
-            };
-
-            const init = async () => {
-                // sections 硬编码为团一、团二，默认团一
-                sections.value = ['团一', '团二'];
-                if (!selectedSection.value) selectedSection.value = '团一';
-                try {
-                    const section = selectedSection.value || '团一';
-                    const res = await fetch('/api/init?section=' + encodeURIComponent(section) + '&_t=' + Date.now());
-                    const json = await res.json();
-                    if (json.success) {
-                        if (json.stats && Object.keys(json.stats).length) {
-                            stats.value = json.stats; statsLoaded.value = true;
-                            statsCount.value = json.statsCount || 0; statsFilename.value = '默认';
-                        }
-                        if (json.sortFields?.length) {
-                            sortFields.value = json.sortFields;
-                            if (!sortFields.value.some(f => f.key === sortBy.value))
-                                sortBy.value = sortFields.value[0].key;
-                        }
-                        if (json.members?.length) {
-                            members.value = json.members;
-                            benchMembers.value = json.bench || [];
-                            teamsData.value = json.teams || {};
-                            benchTask.value = json.bench_task || '';
-                            guanduFilename.value = '默认数据';
-                        }
-                        if (json.matchDone) {
-                            nameMap.value = json.nameMap || {};
-                            unmatched.value = (json.unmatched || []).map(r => ({...r, manualMatch: ''}));
-                            matchDone.value = true;
-                        }
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        alert('导出成功！');
+                    } catch (e) {
+                        console.error(e);
+                        alert('导出失败');
+                    } finally {
+                        loading.value = false;
                     }
-                } catch (e) { console.error('[init]', e); }
-            };
-            init();
-
-            return {
-                steps, currentStep, maxReachedStep, goStep,
-                sections, selectedSection, stats, statsLoaded, statsCount, statsFilename,
-                members, benchMembers, teamsData, guanduFilename, unmatched, nameMap,
-                threshold, randomSeed, manualCaptains, sortBy, sortFields, sortLabel,
-                matchDone, assignmentDone, loading, loadingText,
-                bAssign, dAssign, sortedMembers, importReady, statNames,
-                teamResults, teamStrength,
-                getSortValue, getStatLabel, getValClass,
-                selectSection, reloadStats, uploadStatsFile, loadGuandu, uploadGuanduFile,
-                matchMembers, skipAll, confirmMatches,
-                runAssignment, exportExcel, resetAll,
-                swapPanel, openSwapPanel, doSwap,
-            };
+                };
+                
+                const resetAll = () => {
+                    assignmentDone.value = false;
+                    bAssign.value = {};
+                    dAssign.value = {};
+                    sortedMembers.value = [];
+                    manualCaptains.value = {B1:'',B2:'',B3:'',B4:'',B5:'',B6:''};
+                };
+                
+                const moveToBench = (idx) => {
+                    const m = members.value.splice(idx, 1)[0];
+                    benchMembers.value.push(m);
+                };
+                
+                const moveToMember = (idx) => {
+                    const m = benchMembers.value.splice(idx, 1)[0];
+                    members.value.push(m);
+                };
+                
+                // Init: 一次性加载所有数据
+                const init = async () => {
+                    _dlog('init 开始...');
+                    try {
+                        const section = selectedSection.value || '团一';
+                        const res = await fetch('/api/init?section=' + encodeURIComponent(section) + '&_t=' + Date.now());
+                        _dlog('init 收到响应，等待解析...');
+                        const json = await res.json();
+                        _dlog('init 响应: status=' + res.status + ' success=' + json.success);
+                        if (json.success) {
+                            // Sections
+                            if (json.sections && json.sections.length) {
+                                sections.value = json.sections;
+                                if (!selectedSection.value) {
+                                    selectedSection.value = json.sections[0];
+                                }
+                                _dlog('sections: ' + JSON.stringify(json.sections));
+                            }
+                            // Stats
+                            if (json.stats && Object.keys(json.stats).length) {
+                                stats.value = json.stats;
+                                statsLoaded.value = true;
+                                statsCount.value = json.statsCount || 0;
+                                statsFilename.value = '默认文件';
+                                _dlog('stats: ' + Object.keys(json.stats).length + ' 条');
+                            }
+                            // Sort fields
+                            if (json.sortFields && json.sortFields.length) {
+                                sortFields.value = json.sortFields;
+                                if (!sortFields.value.some(f => f.key === sortBy.value)) {
+                                    sortBy.value = sortFields.value[0].key;
+                                }
+                            }
+                            // Members
+                            if (json.members && json.members.length) {
+                                members.value = json.members;
+                                benchMembers.value = json.bench || [];
+                                teamsData.value = json.teams || {};
+                                guanduFilename.value = '预置测试数据';
+                                _dlog('members: ' + json.members.length + ' bench: ' + (json.bench||[]).length);
+                            } else {
+                                _dlog('members 为空! json.members=' + JSON.stringify(json.members));
+                            }
+                            // Match results
+                            if (json.matchDone) {
+                                nameMap.value = json.nameMap || {};
+                                unmatched.value = (json.unmatched || []).map(r => ({...r, manualMatch: ''}));
+                                matchDone.value = true;
+                                _dlog('matchDone: nameMap=' + Object.keys(nameMap.value).length + ' unmatched=' + unmatched.value.length);
+                            }
+                            _dlog('init 完成');
+                        } else {
+                            _dlog('init 返回 success=false: ' + (res.data.error || ''));
+                        }
+                    } catch (e) {
+                        _dlog('init 异常: ' + e.message);
+                        console.error('[init] error:', e);
+                    }
+                };
+                init();
+                
+                return {
+                    sections, selectedSection, stats, statsLoaded, statsCount, statsFilename,
+                    members, benchMembers, teamsData, guanduFilename, showMatchModal, unmatched,
+                    nameMap, threshold, randomSeed, manualCaptains, matchDone, assignmentDone, loading, loadingText,
+                    bAssign, dAssign, sortedMembers, debugLog,
+                    bPositions, dPositions,
+                    statNames, matchedCount, unmatchedCount,
+                    getStatHp, getStatTotal, getStatPower, getHp, getHpClass, getSortValue,
+                    sortBy, sortFields,
+                    selectSection, reloadStats, uploadStatsFile, uploadGuanduFile,
+                    matchMembers, skipAll, confirmMatches,
+                    runAssignment, getRank, getTeam, exportExcel, resetAll
+                };
+            }
+        }).mount('#app');
+        console.log('[DEBUG] Mount done...');
+        } catch(e) {
+            console.log('[DEBUG] ERROR: ' + e.message);
+            alert('Vue Error: ' + e.message);
         }
-    });
-
-    app.config.errorHandler = (err, instance, info) => {
-        console.error('Vue Error:', err, info);
-        const el = document.getElementById('app');
-        if (el) el.insertAdjacentHTML('afterbegin',
-            '<div style="background:#dc3545;color:#fff;padding:12px;margin:10px;border-radius:8px;font-size:14px">' +
-            '<b>渲染错误:</b> ' + err.message + '</div>');
-    };
-    app.mount('#app');
-    }
     </script>
 </body>
 </html>
