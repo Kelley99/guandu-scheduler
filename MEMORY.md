@@ -19,3 +19,8 @@
 - Cloudflared临时隧道URL不稳定，断开后需重新启动获取新URL
 - Vue 3 Composition API：ref/reactive声明后必须同步加入setup()的return，否则模板访问为undefined，return遗漏是静默崩溃的常见原因
 - edit工具替换时oldText边界可能吞掉相邻行（尤其是函数定义行紧接try/except时），替换后必须python3 -c "import app"验证语法
+- 5002 端口是 334 服专属，禁止操作，必须保持运行
+
+## 用户身份与偏好
+
+- 用户叫 Kelley
