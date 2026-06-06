@@ -17,6 +17,93 @@ from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 # OCR 懒加载
 _easyocr_reader = None
 
+# 腾讯云 OCR
+import base64
+from tencentcloud.common import credential
+from tencentcloud.ocr.v20181119 import ocr_client, models
+
+TENCENT_SECRET_ID = 'AKID_REMOVED_FROM_HISTORY'
+TENCENT_SECRET_KEY = 'SECRET_KEY_REMOVED_FROM_HISTORY'
+
+def tencent_ocr(image_path):
+    """
+    调用腾讯云通用文字识别API
+    返回: 类似 EasyOCR 的格式 [(bbox, text, confidence), ...]
+    """
+    try:
+        cred = credential.Credential(TENCENT_SECRET_ID, TENCENT_SECRET_KEY)
+        client = ocr_client.OcrClient(cred, 'ap-guangzhou')
+
+        with open(image_path, 'rb') as f:
+            img_b64 = base64.b64encode(f.read()).decode('utf-8')
+
+        req = models.GeneralBasicOCRRequest()
+        req.ImageBase64 = img_b64
+
+        resp = client.GeneralBasicOCR(req)
+
+        results = []
+        for item in resp.TextDetections:
+            poly = item.Polygon
+            if poly:
+                x_coords = [p.X for p in poly]
+                y_coords = [p.Y for p in poly]
+                bbox = [[min(x_coords), min(y_coords)],
+                        [max(x_coords), min(y_coords)],
+                        [max(x_coords), max(y_coords)],
+                        [min(x_coords), max(y_coords)]]
+            else:
+                bbox = [[0,0],[0,0],[0,0],[0,0]]
+                print(f'[OCR Debug] 文字: {item.DetectedText}, 置信度: {item.Confidence}', flush=True)
+            results.append((bbox, item.DetectedText, item.Confidence))
+        print(f'[OCR Debug] 共识别 {len(results)} 个文字块', flush=True)
+        return results
+    except Exception as e:
+        print(f'[OCR] 腾讯云OCR失败: {e}，尝试百度OCR兜底...')
+        return baidu_ocr(image_path)
+
+
+def baidu_ocr(image_path):
+    """百度OCR通用文字识别（腾讯云失败时的兜底方案）"""
+    try:
+        import base64, requests, json, time
+        
+        API_KEY = 'OS2wp5hlvvJwJIYg5ayRA8kt'
+        SECRET_KEY = 'VkbZhazXFLM3hswEtikSIiKGUOEpG1Ts'
+        
+        # 1. 获取 access_token
+        token_url = f'https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={API_KEY}&client_secret={SECRET_KEY}'
+        token_resp = requests.get(token_url, timeout=10)
+        access_token = token_resp.json().get('access_token')
+        if not access_token:
+            print('[OCR] 百度OCR获取token失败')
+            return []
+        
+        # 2. 调用通用文字识别接口
+        ocr_url = f'https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic?access_token={access_token}'
+        with open(image_path, 'rb') as f:
+            img_b64 = base64.b64encode(f.read()).decode('utf-8')
+        data = {'image': img_b64}
+        resp = requests.post(ocr_url, data=data, timeout=30)
+        result = resp.json()
+        
+        if 'words_result' not in result:
+            print(f'[OCR] 百度OCR返回错误: {result}')
+            return []
+        
+        # 转换为类似 EasyOCR 的格式: [(bbox, text, confidence), ...]
+        results = []
+        for item in result['words_result']:
+            words = item['words']
+            # 百度OCR不返回bbox，用占位符
+            bbox = [[0,0],[0,0],[0,0],[0,0]]
+            confidence = 99  # 百度不返回confidence，默认99
+            results.append((bbox, words, confidence))
+        return results
+    except Exception as e:
+        print(f'[OCR] 百度OCR失败: {e}')
+        return []
+
 def get_ocr_reader():
     global _easyocr_reader
     if _easyocr_reader is None:
@@ -1272,7 +1359,7 @@ def match_members_api():
 
 @app.route('/api/assign', methods=['POST'])
 def assign_api():
-    """分配成员"""
+    """分配成员并保存分配记录"""
     data = request.json
     members = data.get('members', [])
     stats = data.get('stats', {})
@@ -1282,6 +1369,8 @@ def assign_api():
     manual_captains = data.get('manual_captains', {})
     sort_by = data.get('sort_by', 'hp')  # 'hp', 'total', 或 'power'
     power_data = data.get('power_data', {})  # 独立战力表数据
+    section = data.get('section', '团一')  # 所属军团
+    bench_members = data.get('bench_members', [])  # 候补成员列表
 
     # 如果有独立战力表数据,合并到 stats 中
     if power_data:
@@ -1293,6 +1382,28 @@ def assign_api():
                 stats[name] = {'hp': 0, 'total': 0, 'power': power_val}
 
     result = assign_members(members, stats, name_map, threshold, seed, manual_captains, sort_by)
+
+    # 保存分配记录到数据库
+    try:
+        conn = sqlite3.connect(ATTENDANCE_DB)
+        c = conn.cursor()
+        c.execute('INSERT INTO assignments (section) VALUES (?)', (section,))
+        conn.commit()
+        assignment_id = c.lastrowid
+        for m in result['sorted']:
+            c.execute('INSERT OR IGNORE INTO assignment_members (assignment_id, member_name, role) VALUES (?,?,?)',
+                      (assignment_id, m['original'], '正式'))
+        conn.commit()
+        conn.close()
+        log_attendance('SAVE_ASSIGNMENT', f'section={section} id={assignment_id} formal={len(result["sorted"])} bench={len(bench_members)}')
+
+        # 插入 assignment_members 表（候补成员）
+        for bench_name in bench_members:
+            c.execute('INSERT OR IGNORE INTO assignment_members (assignment_id, member_name, role) VALUES (?,?,?)',
+                      (assignment_id, bench_name, '候补'))
+    except Exception as e:
+        print('保存分配记录失败:', e)
+
     return jsonify({
         'success': True,
         'b_assign': result['b_assign'],
@@ -1602,25 +1713,49 @@ def download(filename):
     return 'File not found', 404
 
 
-@app.route('/api/ocr', methods=['POST'])
+@app.route('/api/ocr_test', methods=['GET'])
+def ocr_test():
+    """OCR测试接口，无需上传文件，直接返回测试数据"""
+    return jsonify({
+        'success': True,
+        'msg': 'OCR路由正常',
+        'records': [{'name': '测试玩家', 'points': 12345}],
+        'raw_count': 1,
+        'lines': ['测试 12345']
+    })
+
+@app.route('/api/ocr_image', methods=['POST'])
 def ocr_image():
     """OCR识别积分榜截图，返回结构化[{name, points}]"""
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': '未上传文件'}), 400
     file = request.files['file']
+    # 调试：写文件日志（绕过 nohup 缓冲）
+    with open('/tmp/ocr_debug.log', 'a') as dbg:
+        import time
+        dbg.write(f"[OCR] {time.strftime('%H:%M:%S')} ocr_image() 被调用, file={file.filename}\n")
+        dbg.flush()
     if file.filename == '':
         return jsonify({'success': False, 'error': '文件名为空'}), 400
-    filename = secure_filename(file.filename)
-    tmp_path = os.path.join(UPLOAD_DIR, 'ocr_' + filename)
+    # 用时间戳+随机字符作文件名，避免 secure_filename 吞掉中文
+    import time, uuid
+    ext = os.path.splitext(file.filename)[1] or '.jpg'
+    filename = f'ocr_{int(time.time())}_{uuid.uuid4().hex[:8]}{ext}'
+    tmp_path = os.path.join(UPLOAD_DIR, filename)
     file.save(tmp_path)
     try:
-        reader = get_ocr_reader()
-        raw = reader.readtext(tmp_path)
+        # 调用腾讯云OCR API
+        print(f'[OCR Debug] 调用 tencent_ocr: {tmp_path}', flush=True)
+        raw = tencent_ocr(tmp_path)
+        print(f'[OCR Debug] tencent_ocr 返回 {len(raw) if raw else 0} 个结果', flush=True)
+        if raw:
+            for r in raw[:5]:
+                print(f'[OCR Debug]   文字: {r[1]}, 置信度: {r[2]}')
         # 按行分组：Y中心相近的视为同一行（阈值=文字高度的一半）
         blocks = []
         for (bbox, text, conf) in raw:
             t = text.strip()
-            if not t or conf < 0.3:
+            if not t or conf < 30:
                 continue
             y_center = (bbox[0][1] + bbox[2][1]) / 2
             x_center = (bbox[0][0] + bbox[2][0]) / 2
@@ -1629,43 +1764,63 @@ def ocr_image():
         if not blocks:
             return jsonify({'success': True, 'records': [], 'text': ''})
         
-        # 按Y坐标聚类成行（Y差<行高的50%视为同一行）
-        blocks.sort(key=lambda b: b['y'])
-        avg_h = (blocks[-1]['y'] - blocks[0]['y']) / max(len(blocks) - 1, 1) * 0.5
-        if avg_h < 10: avg_h = 10  # 最小行高
+        # 过滤垃圾文字块（UI按钮、标题等）
+        junk_keywords = ['历史战绩', '历虫战绩', '我方排行', '敌方排行', '排名', '主公',
+                         '个人积分', '军团', '查看参战', '转发截图', '战场介绍', '国派对',
+                         '邀万', '查看', '参战名单', '活动', '奖励', '夺宝', '官渡', '邀约', '战场']
+        blocks = [b for b in blocks if not any(kw in b['text'] for kw in junk_keywords)]
         
-        lines = []
-        current_line = [blocks[0]]
-        for b in blocks[1:]:
-            if abs(b['y'] - current_line[0]['y']) < avg_h:
-                current_line.append(b)
-            else:
-                lines.append(sorted(current_line, key=lambda x: x['x']))
-                current_line = [b]
-        lines.append(sorted(current_line, key=lambda x: x['x']))
+        if not blocks:
+            return jsonify({'success': True, 'records': [], 'text': '', 'raw_count': 0, 'lines': []})
         
-        # 解析每一行：提取姓名和积分（积分=行尾连续数字，至少4位）
+        # 策略：扫描所有文字块，找4+位数字（积分），
+        # 对每个积分，找同行（±30px Y差距）内最右侧的非数字块作为名字
+        y_tolerance = 30  # 同行判定阈值
         records = []
-        for line_blocks in lines:
-            line_text = ' '.join(b['text'] for b in line_blocks)
-            # 从行尾找积分数字（4-12位连续数字）
-            m = re.search(r'(\d{4,12})\s*$', line_text)
-            if not m:
+        used_names = set()  # 避免同一个名字块被重复使用
+        
+        # 找所有潜在积分块（4-12位纯数字）
+        points_candidates = []
+        for b in blocks:
+            t = b['text'].strip()
+            if re.match(r'^\d{4,12}$', t):
+                points_candidates.append(b)
+        
+        # 按X坐标从右到左排序（优先匹配右侧积分）
+        points_candidates.sort(key=lambda b: b['x'], reverse=True)
+        
+        for pts_b in points_candidates:
+            pts = int(pts_b['text'].strip())
+            # 找同行（Y差距<30px）内最右侧的非数字、非垃圾文字块
+            same_row = [b for b in blocks
+                        if abs(b['y'] - pts_b['y']) < y_tolerance
+                        and b['x'] < pts_b['x']]
+            if not same_row:
                 continue
-            pts_str = m.group(1)
-            name_part = line_text[:m.start()].strip()
-            # 去掉行首排名数字（1-3位）
-            name_part = re.sub(r'^\d{1,3}\s+', '', name_part).strip()
-            # 名字2-12字符，不含数字
-            if not name_part or len(name_part) < 2 or len(name_part) > 12:
+            same_row.sort(key=lambda b: b['x'], reverse=True)
+            # 取最右侧的作为名字
+            name_block = None
+            for nb in same_row:
+                t = nb['text'].strip()
+                if re.match(r'^\d+$', t):  # 纯数字（排名）跳过
+                    continue
+                if any(kw in t for kw in junk_keywords):
+                    continue
+                name_block = nb
+                break
+            if not name_block:
                 continue
-            if re.search(r'\d', name_part):
-                continue
-            records.append({'name': name_part, 'points': int(pts_str)})
+            name = name_block['text'].strip()
+            # 去掉排名前缀（如 "2 张三" → "张三"）
+            name = re.sub(r'^\d{1,3}\s+', '', name).strip()
+            if name and len(name) >= 2 and name not in used_names:
+                used_names.add(name)
+                records.append({'name': name, 'points': pts})
         
         full_text = '\n'.join(b['text'] for b in blocks)
-        print(f'[OCR] 识别到 {len(records)} 条记录: {records[:5]}')
-        return jsonify({'success': True, 'records': records, 'text': full_text})
+        # 调试：返回每个文字块的详细信息（坐标、文本）
+        raw_blocks_detail = [{'text': b['text'], 'y': round(b['y'], 1), 'x': round(b['x'], 1)} for b in blocks]
+        return jsonify({'success': True, 'records': records, 'text': full_text, 'raw_count': len(blocks), 'raw_blocks': raw_blocks_detail})
     except Exception as e:
         print(f'[OCR] 识别失败: {e}')
         import traceback; traceback.print_exc()
@@ -1829,8 +1984,6 @@ def list_reports():
         result.append(d)
     conn.close()
     return jsonify({'success': True, 'data': result})
-
-
 @app.route('/api/attendance/reports/create', methods=['POST'])
 def create_report():
     """创建战报:选择军团+日期+关联分配记录,OCR识别后自动标记出席并记录功勋积分"""
@@ -1883,7 +2036,10 @@ def create_report():
         ocr_set = set(pts_map.keys())
 
         for name, role in base_members.items():
-            status = '出席' if name in ocr_set else '缺席'
+            if name in ocr_set:
+                status = '候补上场' if role == '候补' else '出席'
+            else:
+                status = '缺席'
             pts = pts_map.get(name, 0)
             c.execute('INSERT INTO attendance_detail (report_id, member_name, status, points) VALUES (?,?,?,?)',
                       (report_id, name, status, pts))
@@ -2163,7 +2319,7 @@ def validate_formation():
 # ============ 版本管理路由 ============
 import subprocess, os as _os
 
-_VERSION_REPO = _os.path.dirname(_os.path.abspath(__file__))
+_VERSION_REPO = os.path.dirname(os.path.abspath(__file__))
 
 @app.route('/version')
 def version_page():

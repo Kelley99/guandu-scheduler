@@ -173,6 +173,54 @@
         .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
         .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #dc3545; }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #28a745; }
+        .team-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .team-card-header {
+            color: white;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        .team-card-body { padding: 8px 14px; }
+        .team-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        .team-row:last-child { border-bottom: none; }
+        .captain-row { font-weight: bold; background: #fffbf0; margin: 4px -14px; padding: 6px 14px; border-radius: 4px; }
+        .pos-badge {
+            min-width: 32px;
+            font-weight: bold;
+            color: #666;
+            font-size: 12px;
+        }
+        .captain-pos { color: #b8860b; }
+        .member-name { flex: 1; color: #333; }
+        .member-val {
+            font-weight: bold;
+            min-width: 50px;
+            text-align: right;
+            font-size: 13px;
+        }
+        .team-card-footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: #f8f9fa;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #eee;
+        }
         .loading {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -197,19 +245,12 @@
     </style>
 </head>
 <body>
-    <!-- TEST: If you see this, HTML is loading -->
-    <div style="background:red;color:white;padding:10px;font-size:20px;">如果看到这个，说明 HTML 加载了</div>
+
     <div style="position:fixed;top:5px;right:10px;z-index:9999;background:#ff0;padding:2px 8px;font-size:12px;color:#000;">v20260426-2100 fetch</div>
     <div id="app">
         <div class="container">
             <h1>官渡自动分配工具</h1>
-            <!-- 模块切换 -->
-            <div style="display:flex;justify-content:center;gap:12px;margin-bottom:20px">
-                <button :class="['btn', currentModule==='assign' ? 'btn-primary' : 'btn-secondary']" @click="currentModule='assign'" style="min-width:140px">⚔️ 官渡分配</button>
-                <button :class="['btn', currentModule==='attendance' ? 'btn-primary' : 'btn-secondary']" @click="currentModule='attendance';loadAttendanceData()" style="min-width:140px">📋 考勤管理</button>
-            </div>
-
-            <div v-if="currentModule==='assign'">
+            
             <!-- 调试面板 -->
             <div class="card" style="background:#ffe; border:2px solid #fc0; margin-bottom:16px">
                 <div style="font-weight:bold; color:#900; margin-bottom:8px">🔧 调试状态</div>
@@ -255,13 +296,12 @@
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>属性表 (步兵生命值)</label>
+                        <label>属性表 / 战力表</label>
                         <div class="btn-group" style="margin-top:0; margin-bottom:12px">
                             <label class="btn btn-primary" style="cursor:pointer">
                                 📁 上传文件
                                 <input type="file" @change="uploadStatsFile" accept=".xlsx,.csv,.md" style="display:none">
                             </label>
-                            <button class="btn btn-secondary" @click="reloadStats">加载默认</button>
                         </div>
                         <div v-if="statsLoaded" class="alert alert-success">
                             ✅ 已加载 {{ statsCount }} 条属性数据
@@ -279,7 +319,29 @@
                                 📁 上传文件
                                 <input type="file" @change="uploadGuanduFile" accept=".xlsx,.csv,.md" style="display:none">
                             </label>
-                            <button class="btn btn-secondary" @click="loadGuandu">加载默认</button>
+                        </div>
+                        <div class="btn-group" style="margin-bottom:12px">
+                            <button class="btn btn-warning" @click="showManualMembers = !showManualMembers">
+                                ➕ 手动添加
+                            </button>
+                        </div>
+                        <div v-show="showManualMembers" style="margin-bottom:12px;padding:12px;background:#fff3cd;border-radius:8px">
+                            <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
+                                <div style="font-size:13px;color:#856404">加入：</div>
+                                <label style="cursor:pointer;font-size:14px;color:#28a745">
+                                    <input type="radio" v-model="manualMemberType" value="formal" style="margin-right:4px">正式成员
+                                </label>
+                                <label style="cursor:pointer;font-size:14px;color:#6c757d">
+                                    <input type="radio" v-model="manualMemberType" value="bench" style="margin-right:4px">候补成员
+                                </label>
+                            </div>
+                            <textarea v-model="manualMembersText" rows="4"
+                                      style="width:100%;padding:8px;border:1px solid #ffc107;border-radius:4px;font-size:14px"
+                                      placeholder="张三&#10;李四&#10;王五"></textarea>
+                            <div style="margin-top:8px;display:flex;gap:8px">
+                                <button class="btn btn-warning" @click="parseManualMembers">✅ 添加</button>
+                                <button class="btn btn-outline-danger" @click="clearAllMembers" style="font-size:13px;padding:4px 12px">🗑 清空名单</button>
+                            </div>
                         </div>
                         <div v-if="members.length > 0" class="alert alert-success">
                             ✅ 已加载 {{ members.length }} 名成员
@@ -306,14 +368,11 @@
                     </div>
                     
                     <!-- 候补人员 -->
-                    <div v-if="benchMembers.length > 0" style="margin-top:16px">
-                        <label style="color:#6c757d;font-weight:bold">📝 候补人员 ({{ benchMembers.length }}人) — 仅汇总输出</label>
-                        <div class="members-grid">
-                            <div v-for="(m, idx) in benchMembers" :key="'b-'+idx" class="member-chip" style="background:#f8f9fa;border:1px solid #6c757d">
-                                <span style="color:#666">{{ m }}</span>
-                            </div>
-                        </div>
+                    <div v-if="members.length === 0 && attMembers.length === 0" style="color:#999;text-align:center;padding:20px">
+                        暂无成员，请上传官渡表或手动添加
                     </div>
+
+
                 </div>
             </div>
             
@@ -327,7 +386,7 @@
                     <span v-else>，全部匹配成功！</span>
                 </div>
                 <div v-else-if="statsLoaded && members.length > 0" class="instruction">
-                    属性表和人员名单已加载，点击"开始匹配"进行匹配
+                    属性表和人员名单已加载，点击"重新匹配"进行匹配
                 </div>
                 <div v-else class="instruction">
                     请先加载属性表和人员名单
@@ -360,27 +419,7 @@
                     </div>
                 </div>
                 
-                <!-- 未匹配成员弹窗（保留用于初始自动弹窗） -->
-                <div v-if="showMatchModal && unmatched.length > 0" class="modal">
-                    <div class="modal-content">
-                        <div class="modal-header">成员名称需要确认</div>
-                        <div v-for="(item, index) in unmatched" :key="index" class="match-item">
-                            <span class="orig">{{ item.original }}</span>
-                            <span>匹配为:</span>
-                            <select v-model="item.manualMatch">
-                                <option value="">-- 跳过 --</option>
-                                <option v-for="name in statNames" :key="name" :value="name">
-                                    {{ name }} ({{ getStatLabel(name) }})
-                                </option>
-                            </select>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-secondary" @click="skipAll">跳过未匹配</button>
-                            <button class="btn btn-primary" @click="confirmMatches">确认</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
             
             <!-- 步骤3: 分组配置 -->
             <div class="card">
@@ -419,7 +458,7 @@
                             <span style="font-weight:bold;min-width:28px">{{ pos }}</span>
                             <select v-model="manualCaptains[pos]" style="flex:1;padding:4px;font-size:13px">
                                 <option value="">-- 自动 --</option>
-                                <option v-for="m in members" :key="m" :value="m">{{ m }}</option>
+                                <option v-for="m in members" :key="m" :value="m">{{ m }} ({{ getSortValue(m) }})</option>
                             </select>
                         </div>
                     </div>
@@ -451,45 +490,45 @@
                     </div>
                 </div>
                 
-                <h3 style="margin: 16px 0 8px">B列分配 (队长)</h3>
-                <table class="preview-table">
-                    <thead>
-                        <tr>
-                            <th>位置</th>
-                            <th>队长</th>
-                            <th v-for="field in sortFields" :key="field.key">{{ field.label }}</th>
-                            <th>排序</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="pos in bPositions" :key="pos">
-                            <td><strong>{{ pos }}</strong></td>
-                            <td>{{ bAssign[pos] ? bAssign[pos].original : '' }}</td>
-                            <td v-for="field in sortFields" :key="field.key" :class="field.key === 'hp' ? getHpClass(bAssign[pos] ? bAssign[pos].hp : 0) : ''">{{ bAssign[pos] ? (bAssign[pos][field.key] || '-') : '-' }}</td>
-                            <td>{{ getRank(pos) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                
-                <h3 style="margin: 20px 0 8px">D列分配 (队员)</h3>
-                <table class="preview-table">
-                    <thead>
-                        <tr>
-                            <th>位置</th>
-                            <th>队员</th>
-                            <th v-for="field in sortFields" :key="field.key">{{ field.label }}</th>
-                            <th>所属队</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="pos in dPositions" :key="pos">
-                            <td><strong>{{ pos }}</strong></td>
-                            <td>{{ dAssign[pos] ? dAssign[pos].original : '' }}</td>
-                            <td v-for="field in sortFields" :key="field.key" :class="field.key === 'hp' ? getHpClass(dAssign[pos] ? dAssign[pos].hp : 0) : ''">{{ dAssign[pos] ? (dAssign[pos][field.key] || '-') : '-' }}</td>
-                            <td>{{ getTeam(pos) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- 队伍实力对比条形图 -->
+                <div style="margin-bottom:24px">
+                    <div style="font-weight:bold;color:#1a1a2e;margin-bottom:12px">📊 队伍实力对比（平均{{ currentSortLabel }}）</div>
+                    <div v-for="(team, ti) in teamCards" :key="ti" style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                        <span style="font-weight:bold;min-width:28px;color:#333">{{ ti+1 }}队</span>
+                        <div style="flex:1;background:#eee;border-radius:20px;height:28px;position:relative;overflow:hidden">
+                            <div :style="{width: team.avgPct + '%', background: teamColors[ti], height:'100%', borderRadius:'20px', transition:'width 0.5s'}"></div>
+                            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:bold;color:#333">{{ team.avgVal }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6队卡片布局 -->
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px">
+                    <div v-for="(team, ti) in teamCards" :key="ti" class="team-card" :style="{borderTop: '4px solid ' + teamColors[ti]}">
+                        <div class="team-card-header" :style="{background: teamColors[ti]}">
+                            <span style="font-weight:bold;font-size:16px">{{ ti+1 }}队</span>
+                            <span>队长: {{ team.captainName }}</span>
+                        </div>
+                        <div class="team-card-body">
+                            <!-- 队长行 -->
+                            <div v-if="team.captain" class="team-row captain-row" @click="clickSwap('b', team.captainPos, ti)" style="cursor:pointer" :style="{background: selectedSwap && selectedSwap.pos === team.captainPos ? '#ffeaa7' : ''}">
+                                <span class="pos-badge captain-pos">{{ team.captainPos }}</span>
+                                <span class="member-name" style="text-decoration:underline dotted">{{ team.captainName }}</span>
+                                <span class="member-val" :class="getHpClass(team.captainVal)">{{ team.captainVal > 0 ? team.captainVal : '-' }}</span>
+                            </div>
+                            <!-- 队员行 -->
+                            <div v-for="m in team.members" :key="m.pos" class="team-row" @click="clickSwap('d', m.pos, ti)" style="cursor:pointer" :style="{background: selectedSwap && selectedSwap.pos === m.pos ? '#ffeaa7' : ''}">
+                                <span class="pos-badge">{{ m.pos }}</span>
+                                <span class="member-name" style="text-decoration:underline dotted">{{ m.name }}</span>
+                                <span class="member-val" :class="getHpClass(m.val)">{{ m.val > 0 ? m.val : '-' }}</span>
+                            </div>
+                        </div>
+                        <div class="team-card-footer">
+                            <span>平均{{ currentSortLabel }}: <strong>{{ team.avgVal }}</strong></span>
+                            <span>人数: <strong>{{ team.count }}</strong></span>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="btn-group">
                     <button class="btn btn-success" @click="exportExcel">导出Excel</button>
@@ -508,139 +547,6 @@
             </div>
         </div>
         
-        </div><!-- end assign module -->
-
-        <!-- ========== 考勤管理模块 ========== -->
-        <div v-if="currentModule==='attendance'">
-            <!-- 考勤 Tab 切换 -->
-            <div style="display:flex;gap:8px;margin-bottom:16px">
-                <button :class="['tab-btn', {active: attTab==='members'}]" @click="attTab='members'">👥 成员名单</button>
-                <button :class="['tab-btn', {active: attTab==='reports'}]" @click="attTab='reports';loadReports()'">📊 战报管理</button>
-            </div>
-
-            <!-- 成员名单 Tab -->
-            <div v-if="attTab==='members'" class="card">
-                <div class="card-header">👥 考勤成员名单</div>
-                <div class="btn-group" style="margin-bottom:16px">
-                    <button class="btn btn-primary" @click="importAttMembers" :disabled="!statsLoaded">从属性表导入</button>
-                    <button class="btn btn-secondary" @click="showAddMember=true">手动添加</button>
-                </div>
-                <div v-if="showAddMember" style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
-                    <input v-model="newMemberName" placeholder="输入成员姓名" style="flex:1" @keyup.enter="addAttMember">
-                    <button class="btn btn-success" @click="addAttMember" style="padding:8px 16px">添加</button>
-                    <button class="btn btn-secondary" @click="showAddMember=false" style="padding:8px 16px">取消</button>
-                </div>
-                <div v-if="attMembers.length === 0" style="color:#999;text-align:center;padding:20px">
-                    暂无成员，请从属性表导入或手动添加
-                </div>
-                <div v-else class="members-grid">
-                    <div v-for="(m, idx) in attMembers" :key="m.name" class="member-chip" style="background:#d4edda;border:1px solid #28a745;display:flex;align-items:center;justify-content:space-between">
-                        <span>{{ m.name }}</span>
-                        <button @click="deleteAttMember(m.name)" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px;padding:0 4px" title="删除">×</button>
-                    </div>
-                </div>
-                <div v-if="attMembers.length > 0" style="margin-top:12px;color:#666;font-size:13px">
-                    共 {{ attMembers.length }} 人
-                </div>
-            </div>
-
-            <!-- 战报管理 Tab -->
-            <div v-if="attTab==='reports'" class="card">
-                <div class="card-header">📊 战报管理</div>
-                
-                <!-- 创建战报 -->
-                <div style="margin-bottom:20px;padding:16px;background:#f8f9fa;border-radius:8px">
-                    <div style="font-weight:bold;margin-bottom:12px">创建新战报</div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>军团</label>
-                            <select v-model="newReport.section">
-                                <option v-for="s in sections" :key="s" :value="s">{{ s }}</option>
-                                <option value="其他">其他</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>日期</label>
-                            <input type="date" v-model="newReport.report_date">
-                        </div>
-                    </div>
-                    
-                    <!-- OCR 识别 -->
-                    <div style="margin-top:12px">
-                        <label class="btn btn-primary" style="cursor:pointer">
-                            📷 OCR识别积分榜
-                            <input type="file" @change="ocrAttendanceImage" accept="image/*" style="display:none">
-                        </label>
-                        <span v-if="attOcrLoading" style="margin-left:8px;color:#ffc107">识别中...</span>
-                    </div>
-                    
-                    <!-- OCR 结果确认 -->
-                    <div v-if="attOcrResults.length > 0" style="margin-top:12px">
-                        <div style="font-weight:bold;margin-bottom:8px;color:#28a745">✅ 识别到 {{ attOcrResults.length }} 人</div>
-                        <table style="width:100%;font-size:13px">
-                            <thead><tr><th>姓名</th><th>积分</th><th>操作</th></tr></thead>
-                            <tbody>
-                                <tr v-for="(r, idx) in attOcrResults" :key="idx">
-                                    <td><input v-model="r.name" style="width:100%;padding:4px;border:1px solid #ddd;border-radius:4px"></td>
-                                    <td><input v-model.number="r.points" type="number" style="width:80px;padding:4px;border:1px solid #ddd;border-radius:4px"></td>
-                                    <td><button @click="attOcrResults.splice(idx,1)" style="background:none;border:none;color:#dc3545;cursor:pointer">删除</button></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="btn-group" style="margin-top:12px">
-                        <button class="btn btn-success" @click="createReport" :disabled="!newReport.section || !newReport.report_date">创建战报</button>
-                    </div>
-                </div>
-
-                <!-- 战报列表 -->
-                <div v-if="attReports.length === 0" style="color:#999;text-align:center;padding:20px">
-                    暂无战报记录
-                </div>
-                <div v-for="rpt in attReports" :key="rpt.id" style="border:1px solid #ddd;border-radius:8px;margin-bottom:12px;overflow:hidden">
-                    <div style="background:#f8f9fa;padding:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" @click="toggleReport(rpt.id)">
-                        <div>
-                            <strong>{{ rpt.section }}</strong>
-                            <span style="margin-left:8px;color:#666">{{ rpt.report_date }}</span>
-                            <span v-if="rpt.status_count" style="margin-left:12px;font-size:12px">
-                                <span style="color:#28a745">出席{{ rpt.status_count['出席'] || 0 }}</span>
-                                <span style="color:#ffc107;margin-left:6px">请假{{ rpt.status_count['请假'] || 0 }}</span>
-                                <span style="color:#dc3545;margin-left:6px">缺席{{ rpt.status_count['缺席'] || 0 }}</span>
-                            </span>
-                        </div>
-                        <div>
-                            <button class="btn btn-secondary" @click.stop="exportAttReport(rpt.id)" style="padding:4px 12px;font-size:12px">导出</button>
-                            <button class="btn btn-secondary" @click.stop="deleteReport(rpt.id)" style="padding:4px 12px;font-size:12px;color:#dc3545">删除</button>
-                            <span style="margin-left:8px;font-size:18px">{{ expandedReport === rpt.id ? '▼' : '▶' }}</span>
-                        </div>
-                    </div>
-                    <div v-if="expandedReport === rpt.id" style="padding:12px">
-                        <table style="width:100%;font-size:13px">
-                            <thead><tr><th>姓名</th><th>状态</th><th>积分</th><th>操作</th></tr></thead>
-                            <tbody>
-                                <tr v-for="d in reportDetails" :key="d.member_name">
-                                    <td>{{ d.member_name }}</td>
-                                    <td>
-                                        <select v-model="d.status" @change="updateAttStatus(d)" style="padding:4px;font-size:12px">
-                                            <option value="出席">✅ 出席</option>
-                                            <option value="请假">📝 请假</option>
-                                            <option value="缺席">❌ 缺席</option>
-                                            <option value="候补上场">🔄 候补上场</option>
-                                        </select>
-                                    </td>
-                                    <td :style="{color: d.points > 0 ? '#28a745' : '#999', fontWeight: d.points > 0 ? 'bold' : 'normal'}">
-                                        {{ d.points > 0 ? '+' + d.points : d.points }}
-                                    </td>
-                                    <td></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div><!-- end attendance module -->
-
         <!-- Loading -->
         <div v-if="loading" class="loading">
             <div class="loading-content">
@@ -654,8 +560,8 @@
     
     <script>
         try {
-            const { createApp, ref, computed } = Vue;
-        createApp({
+            const { createApp, ref, computed, watch } = Vue;
+        const app = createApp({
             setup() {
                 const sections = ref([]);
                 const selectedSection = ref('');
@@ -665,14 +571,48 @@
                 const statsFilename = ref('');
                 const members = ref([]);
                 const benchMembers = ref([]);
+                const attMembers = ref([]);
+                const showManualMembers = ref(false);
+                const manualMembersText = ref('');
+                const manualMemberType = ref('formal');
                 const teamsData = ref({});
                 const guanduFilename = ref('');
-                const showMatchModal = ref(false);
                 const unmatched = ref([]);
                 const nameMap = ref({});
                 const threshold = ref(900);
                 const randomSeed = ref(42);
                 const manualCaptains = ref({B1:'',B2:'',B3:'',B4:'',B5:'',B6:''});
+                const selectedSwap = ref(null); // { type:'b'|'d', pos: 'B1'|'D1', teamIdx: 0 }
+
+                const clickSwap = (type, pos, teamIdx) => {
+                    if (!selectedSwap.value) {
+                        selectedSwap.value = { type, pos, teamIdx };
+                    } else {
+                        const s = selectedSwap.value;
+                        selectedSwap.value = null;
+                        if (s.type === 'b' && type === 'b') {
+                            // swap two captains
+                            const tmp = bAssign.value[s.pos];
+                            bAssign.value[s.pos] = bAssign.value[pos];
+                            bAssign.value[pos] = tmp;
+                        } else if (s.type === 'd' && type === 'd') {
+                            // swap two members
+                            const tmp = dAssign.value[s.pos];
+                            dAssign.value[s.pos] = dAssign.value[pos];
+                            dAssign.value[pos] = tmp;
+                        } else if (s.type === 'b' && type === 'd') {
+                            // swap captain with member
+                            const tmp = bAssign.value[s.pos];
+                            bAssign.value[s.pos] = dAssign.value[pos];
+                            dAssign.value[pos] = tmp;
+                        } else if (s.type === 'd' && type === 'b') {
+                            // swap member with captain
+                            const tmp = dAssign.value[s.pos];
+                            dAssign.value[s.pos] = bAssign.value[pos];
+                            bAssign.value[pos] = tmp;
+                        }
+                    }
+                };
                 const sortBy = ref('hp');  // 动态选择: 'hp' / 'total' / 'power'
                 const sortFields = ref([{key: 'hp', label: '步兵生命值'}]);  // 从属性表动态检测
                 const matchDone = ref(false);
@@ -746,6 +686,56 @@
                     if (hp >= 700) return 'hp-mid';
                     return 'hp-low';
                 };
+
+                // 队伍颜色（6队）
+                const teamColors = ['#ffd700', '#4fc3f7', '#66bb6a', '#ef5350', '#ab47bc', '#ff8a65'];
+
+                // 当前排序字段标签
+                const currentSortLabel = computed(() => {
+                    if (!sortFields.value.length) return '属性值';
+                    return sortFields.value.find(f => f.key === sortBy.value)?.label || sortBy.value;
+                });
+
+                // 6队卡片数据：按新的队伍-位置对应关系
+                // B1→D1-D8, B2→D9-D16, B3→D17-D18, B4→D19-D20, B5→D21-D22, B6→D23-D24
+                const teamRanges = [
+                    { bIdx: 0, dStart: 0, dCount: 8 },   // B1 → D1-D8
+                    { bIdx: 1, dStart: 8, dCount: 8 },   // B2 → D9-D16
+                    { bIdx: 2, dStart: 16, dCount: 2 }, // B3 → D17-D18
+                    { bIdx: 3, dStart: 18, dCount: 2 }, // B4 → D19-D20
+                    { bIdx: 4, dStart: 20, dCount: 2 }, // B5 → D21-D22
+                    { bIdx: 5, dStart: 22, dCount: 2 }, // B6 → D23-D24
+                ];
+                const teamCards = computed(() => {
+                    const teams = [];
+                    for (const range of teamRanges) {
+                        const bPos = bPositions[range.bIdx];
+                        const captain = bAssign.value[bPos];
+                        const members = [];
+                        for (let j = 0; j < range.dCount; j++) {
+                            const dIdx = range.dStart + j;
+                            const dPos = dPositions[dIdx];
+                            const m = dAssign.value[dPos];
+                            if (m && m.original) {
+                                members.push({ pos: dPos, name: m.original, val: m[sortBy.value] || 0 });
+                            }
+                        }
+                        const captainVal = captain ? (captain[sortBy.value] || 0) : 0;
+                        const allVals = [captainVal, ...members.map(m => m.val)].filter(v => v > 0);
+                        const avgVal = allVals.length > 0 ? Math.round(allVals.reduce((a,b)=>a+b,0) / allVals.length) : 0;
+                        teams.push({
+                            captain,
+                            captainName: captain ? captain.original : '(空)',
+                            captainPos: bPos,
+                            captainVal,
+                            members,
+                            count: (captain ? 1 : 0) + members.length,
+                            avgVal,
+                            avgPct: avgVal > 0 ? Math.min(100, Math.round(avgVal / 20)) : 0
+                        });
+                    }
+                    return teams;
+                });
                 
                 const selectSection = async (section) => {
                     selectedSection.value = section;
@@ -937,10 +927,12 @@
                             }
                             matchDone.value = true;
                             if (unmatched.value.length > 0) {
-                                showMatchModal.value = true;
+                                // 使用内联显示 (line 354-372)
                             } else {
                                 alert('所有成员匹配成功！');
                             }
+                        } else {
+                            alert('匹配失败: ' + JSON.stringify(json));
                         }
                     } catch (e) {
                         console.error('[matchMembers] error:', e);
@@ -950,11 +942,19 @@
                     }
                 };
                 
+                // 自动匹配：当成员名单和属性表都加载完成后，自动执行匹配
+                let autoMatchDone = false;
+                Vue.watch([() => members.value.length, statsLoaded], ([mLen, sLoaded]) => {
+                    if (!autoMatchDone && mLen > 0 && sLoaded && !matchDone.value) {
+                        autoMatchDone = true;
+                        matchMembers();
+                    }
+                });
+                
                 const skipAll = () => {
                     for (const item of unmatched.value) {
                         nameMap.value[item.original] = null;
                     }
-                    showMatchModal.value = false;
                 };
                 
                 const confirmMatches = () => {
@@ -968,7 +968,6 @@
                         }
                     }
                     unmatched.value = stillUnmatched;
-                    showMatchModal.value = false;
                 };
                 
                 const runAssignment = async () => {
@@ -1027,6 +1026,15 @@
                     loading.value = true;
                     loadingText.value = '生成Excel...';
                     try {
+                        // 如果 teamsData 为空，先从后端加载
+                        let td = teamsData.value;
+                        if (!td || Object.keys(td).length === 0) {
+                            try {
+                                const gr = await fetch('/api/load_guandu?section=' + encodeURIComponent(selectedSection.value));
+                                const gj = await gr.json();
+                                if (gj.success && gj.teams) td = gj.teams;
+                            } catch(e) {}
+                        }
                         // 1. POST 生成文件
                         const res = await fetch('/api/export', {
                             method: 'POST',
@@ -1036,7 +1044,7 @@
                                 d_assign: dAssign.value,
                                 sorted: sortedMembers.value,
                                 name_map: nameMap.value,
-                                teams_data: teamsData.value,
+                                teams_data: td,
                                 section: selectedSection.value,
                                 bench_list: benchMembers.value
                             })
@@ -1071,6 +1079,55 @@
                     dAssign.value = {};
                     sortedMembers.value = [];
                     manualCaptains.value = {B1:'',B2:'',B3:'',B4:'',B5:'',B6:''};
+                };
+
+                const addAttMember = (name, type = 'formal') => {
+                    const n = name.trim();
+                    if (!n) return;
+                    if (!attMembers.value.find(m => m.name === n)) {
+                        attMembers.value.push({ name: n, type });
+                    }
+                };
+
+                const clearAllMembers = () => {
+                    // Remove manually added members from members/benchMembers
+                    const formalNames = attMembers.value.filter(m => m.type === 'formal').map(m => m.name);
+                    const benchNames = attMembers.value.filter(m => m.type === 'bench').map(m => m.name);
+                    members.value = members.value.filter(m => !formalNames.includes(m));
+                    benchMembers.value = benchMembers.value.filter(m => !benchNames.includes(m));
+                    attMembers.value = [];
+                };
+
+                const deleteAttMember = (name) => {
+                    const item = attMembers.value.find(m => m.name === name);
+                    if (item) {
+                        if (item.type === 'formal') {
+                            members.value = members.value.filter(m => m !== name);
+                        } else {
+                            benchMembers.value = benchMembers.value.filter(m => m !== name);
+                        }
+                    }
+                    attMembers.value = attMembers.value.filter(m => m.name !== name);
+                };
+
+                const parseManualMembers = () => {
+                    const lines = manualMembersText.value.split('\n').map(l => l.trim()).filter(l => l);
+                    lines.forEach(name => {
+                        const n = name.trim();
+                        if (!n) return;
+                        if (manualMemberType.value === 'formal') {
+                            if (!members.value.includes(n)) {
+                                members.value.push(n);
+                            }
+                        } else {
+                            if (!benchMembers.value.includes(n)) {
+                                benchMembers.value.push(n);
+                            }
+                        }
+                        addAttMember(n, manualMemberType.value);
+                    });
+                    manualMembersText.value = '';
+                    showManualMembers.value = false;
                 };
                 
                 const moveToBench = (idx) => {
@@ -1144,206 +1201,33 @@
                 };
                 init();
                 
-
-                // ========== 考勤模块 ==========
-                const currentModule = ref('assign');
-                const attTab = ref('members');
-                const attMembers = ref([]);
-                const showAddMember = ref(false);
-                const newMemberName = ref('');
-                const attReports = ref([]);
-                const expandedReport = ref(null);
-                const reportDetails = ref([]);
-                const newReport = ref({ section: '', report_date: '' });
-                const attOcrLoading = ref(false);
-                const attOcrResults = ref([]);
-
-                const loadAttendanceData = async () => {
-                    await loadAttMembers();
-                };
-
-                const loadAttMembers = async () => {
-                    try {
-                        const res = await fetch('/api/attendance/members');
-                        const json = await res.json();
-                        if (json.success) attMembers.value = json.data;
-                    } catch(e) { console.error(e); }
-                };
-
-                const importAttMembers = async () => {
-                    const names = Object.keys(stats.value);
-                    if (!names.length) { alert('请先加载属性表'); return; }
-                    try {
-                        const res = await fetch('/api/attendance/members/import', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ names })
-                        });
-                        const json = await res.json();
-                        if (json.success) {
-                            alert(`导入成功：新增${json.added}人，跳过${json.skipped}人`);
-                            await loadAttMembers();
-                        } else { alert('导入失败：' + json.error); }
-                    } catch(e) { alert('导入失败'); }
-                };
-
-                const addAttMember = async () => {
-                    if (!newMemberName.value.trim()) return;
-                    try {
-                        const res = await fetch('/api/attendance/members/add', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ name: newMemberName.value.trim() })
-                        });
-                        const json = await res.json();
-                        if (json.success) {
-                            newMemberName.value = '';
-                            showAddMember.value = false;
-                            await loadAttMembers();
-                        } else { alert(json.error); }
-                    } catch(e) { alert('添加失败'); }
-                };
-
-                const deleteAttMember = async (name) => {
-                    if (!confirm('确认删除 ' + name + '？')) return;
-                    try {
-                        const res = await fetch('/api/attendance/members/delete', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ name })
-                        });
-                        const json = await res.json();
-                        if (json.success) await loadAttMembers();
-                    } catch(e) { alert('删除失败'); }
-                };
-
-                const loadReports = async () => {
-                    try {
-                        const res = await fetch('/api/attendance/reports');
-                        const json = await res.json();
-                        if (json.success) attReports.value = json.data;
-                    } catch(e) { console.error(e); }
-                };
-
-                const toggleReport = async (reportId) => {
-                    if (expandedReport.value === reportId) {
-                        expandedReport.value = null;
-                        return;
-                    }
-                    expandedReport.value = reportId;
-                    try {
-                        const res = await fetch('/api/attendance/detail/' + reportId);
-                        const json = await res.json();
-                        if (json.success) reportDetails.value = json.data;
-                    } catch(e) { console.error(e); }
-                };
-
-                const updateAttStatus = async (detail) => {
-                    try {
-                        await fetch('/api/attendance/detail/update', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ report_id: expandedReport.value, member_name: detail.member_name, status: detail.status })
-                        });
-                    } catch(e) { console.error(e); }
-                };
-
-                const ocrAttendanceImage = async (event) => {
-                    const file = event.target.files[0];
-                    if (!file) return;
-                    attOcrLoading.value = true;
-                    const formData = new FormData();
-                    formData.append('image', file);
-                    try {
-                        const res = await fetch('/api/ocr_image', { method: 'POST', body: formData });
-                        const json = await res.json();
-                        if (json.success && json.records) {
-                            attOcrResults.value = json.records.map(r => ({ name: r.name || r, points: r.points || 0 }));
-                        } else {
-                            alert('OCR识别失败：' + (json.error || '未知错误'));
-                        }
-                    } catch(e) { alert('OCR失败'); }
-                    finally { attOcrLoading.value = false; event.target.value = ''; }
-                };
-
-                const createReport = async () => {
-                    const nr = newReport.value;
-                    if (!nr.section || !nr.report_date) { alert('请填写军团和日期'); return; }
-                    try {
-                        const res = await fetch('/api/attendance/reports/create', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({
-                                section: nr.section,
-                                report_date: nr.report_date,
-                                ocr_data: attOcrResults.value.map(r => ({ name: r.name, points: r.points }))
-                            })
-                        });
-                        const json = await res.json();
-                        if (json.success) {
-                            alert('战报创建成功！ID: ' + json.report_id);
-                            attOcrResults.value = [];
-                            newReport.value = { section: '', report_date: '' };
-                            await loadReports();
-                        } else { alert('创建失败：' + json.error); }
-                    } catch(e) { alert('创建失败'); }
-                };
-
-                const deleteReport = async (reportId) => {
-                    if (!confirm('确认删除此战报？')) return;
-                    try {
-                        const res = await fetch('/api/attendance/reports/delete', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ report_id: reportId })
-                        });
-                        const json = await res.json();
-                        if (json.success) {
-                            if (expandedReport.value === reportId) expandedReport.value = null;
-                            await loadReports();
-                        }
-                    } catch(e) { alert('删除失败'); }
-                };
-
-                const exportAttReport = async (reportId) => {
-                    try {
-                        const res = await fetch('/api/attendance/export', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ report_id: reportId, password: 'lingxiao2026' })
-                        });
-                        if (res.ok) {
-                            const blob = await res.blob();
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url; a.download = '考勤战报.xlsx';
-                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                        } else {
-                            const json = await res.json();
-                            alert('导出失败：' + (json.error || '未知'));
-                        }
-                    } catch(e) { alert('导出失败'); }
-                };
-
                 return {
-                    currentModule, attTab, attMembers, showAddMember, newMemberName,
-                    attReports, expandedReport, reportDetails, newReport, attOcrLoading, attOcrResults,
-                    loadAttendanceData, importAttMembers, addAttMember, deleteAttMember,
-                    loadReports, toggleReport, updateAttStatus, ocrAttendanceImage,
-                    createReport, deleteReport, exportAttReport,
                     sections, selectedSection, stats, statsLoaded, statsCount, statsFilename,
-                    members, benchMembers, teamsData, guanduFilename, showMatchModal, unmatched,
+                    members, benchMembers, teamsData, guanduFilename, unmatched,
+                    attMembers, showManualMembers, manualMembersText, manualMemberType,
+                    addAttMember, deleteAttMember, parseManualMembers, clearAllMembers,
                     nameMap, threshold, randomSeed, manualCaptains, matchDone, assignmentDone, loading, loadingText,
                     bAssign, dAssign, sortedMembers, debugLog,
                     bPositions, dPositions,
                     statNames, matchedCount, unmatchedCount,
-                    getStatHp, getStatTotal, getStatPower, getHp, getHpClass, getSortValue,
+                    getStatHp, getStatTotal, getStatPower, getHp, getHpClass, getSortValue, getStatLabel,
+                    teamCards, teamColors, currentSortLabel, selectedSwap, clickSwap,
                     sortBy, sortFields,
                     selectSection, reloadStats, uploadStatsFile, uploadGuanduFile,
                     matchMembers, skipAll, confirmMatches,
                     runAssignment, getRank, getTeam, exportExcel, resetAll
                 };
             }
-        }).mount('#app');
-        console.log('[DEBUG] Mount done...');
+        });
+        app.config.errorHandler = (err, vm, info) => {
+            alert('Vue Error: ' + err.message + '\n' + info);
+        };
+        app.mount('#app');
         } catch(e) {
-            console.log('[DEBUG] ERROR: ' + e.message);
+            console.error('[Vue Error]', e);
             alert('Vue Error: ' + e.message);
         }
     </script>
+            </div>
 </body>
 </html>
