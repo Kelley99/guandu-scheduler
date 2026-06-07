@@ -321,7 +321,7 @@ def parse_guandu_table(content: str, section: str) -> dict:
     | | | A | 队员名 |
     parts: ['', '', 'A', '队员名']
     """
-    pattern = rf'## {re.escape(section)}[\s\S]*?(?=## 团|$)'
+    pattern = rf'## {re.escape(section)}[\s\S]*?(?=## |$)'
     match = re.search(pattern, content)
     if not match:
         return {'teams': {}, 'bench': []}
@@ -406,19 +406,27 @@ def parse_guandu_table(content: str, section: str) -> dict:
                 teams_data[current_team]['B_tasks']['10-20'] = task_10_20
 
         # 无队号/分组标记的行,可能是队员行(3-6队后续队员)
-        elif current_team and parts[0] not in ['队伍', '队长', '替补']:
+        elif current_team and parts[0] not in ['队伍', '队长', '替补', '候补']:
             # 3-6队后续队员在 col4
             member = raw_parts[4].strip() if len(raw_parts) > 4 else parts[0]
             if member and not any(kw in member for kw in tactic_kw) and not member.isdigit():
                 if not re.match(r'^[\d\s]+$', member):
                     teams_data[current_team]['A_members'].append(member)
 
-        # 替补行
-        if parts[0] == '替补' and len(parts) > 1:
+        # 替补/候补行(支持表格格式 | 替补 | 名单 | 和非表格格式 候补：名单)
+        bench_text = None
+        if parts and parts[0] in ['替补', '候补'] and len(parts) > 1:
+            # 表格格式: | 替补 | 名单 |
             bench_text = parts[1]
+        elif line.startswith('候补') or line.startswith('替补'):
+            # 非表格格式: 候补：名单 或 替补：名单（行首无 |）
+            bench_text = line.replace('候补：', '').replace('替补：', '').strip()
+        
+        if bench_text is not None:
             bench_members = [m.strip() for m in bench_text.split('、') if m.strip()]
             # 替补任务在 raw_parts[6] (10-20分钟列)
             bench_task = raw_parts[6].strip() if len(raw_parts) > 6 else ''
+            continue
 
     return {'teams': teams_data, 'bench': bench_members, 'bench_task': bench_task if 'bench_task' in dir() else ''}
 
@@ -636,16 +644,14 @@ def match_member(name: str, stats: dict) -> dict:
 
 
 def assign_members(members: list, stats: dict, name_map: dict, threshold: float = 900, seed: int = 42, manual_captains: dict = None, sort_by: str = 'hp') -> dict:
-    """蛇形分配成员到B列和D列
+    """按Kelley规则分配成员到B列和D列
 
-    官渡表格式:
-    - 1队2队: 各8队员(A组4+B组4)
-    - 3-6队: 各2队员(无分组)
-
-    蛇形分配策略:
-    - B1=第1名, B2=第2名, B3-B6按序分配
-    - 高值成员蛇形分配到1队2队的A/B组
-    - 低值成员蛇形分配到3-6队
+    分配规则:
+    - B1=第1名, B2=第2名
+    - D1=第3名(1队A组), D9=第4名(1队B组)
+    - B3-B6=第5-8名
+    - 第9名开始蛇形分配到1-6队D位(每队4个D位循环)
+    - <threshold的跳过1-2队,直接去3-6队
     """
     random.seed(seed)
     manual_captains = manual_captains or {}
@@ -687,46 +693,53 @@ def assign_members(members: list, stats: dict, name_map: dict, threshold: float 
 
     auto_pool = [m for m in sorted_members if m['original'] not in manual_used]
 
-    # D列位置映射(与官渡表格式一致)
-    # 1队: A组D1-D4, B组D9-D12 (共8队员)
-    # 2队: A组D5-D8, B组D13-D16 (共8队员)
-    # 3队: D17,D18 / 4队: D19,D20 / 5队: D21,D22 / 6队: D23,D24
+    # D列位置: 1队A(D1-D4), 2队A(D5-D8), 1队B(D9-D12), 2队B(D13-D16), 3队(D17-D18), 4队(D19-D20), 5队(D21-D22), 6队(D23-D24)
+    # 1队: D1-D4(位置0-3) + D9-D12(位置8-11)
+    # 2队: D5-D8(位置4-7) + D13-D16(位置12-15)
+    # 3队: D17-D18(位置16-17) / 4队: D19-D20(位置18-19) / 5队: D21-D22(位置20-21) / 6队: D23-D24(位置22-23)
+    all_d = [
+        'D1','D2','D3','D4',    # 1队A组 位置0-3
+        'D5','D6','D7','D8',         # 2队A组 位置4-7
+        'D9','D10','D11','D12',      # 1队B组 位置8-11
+        'D13','D14','D15','D16',     # 2队B组 位置12-15
+        'D17','D18',                 # 3队 位置16-17
+        'D19','D20',                 # 4队 位置18-19
+        'D21','D22',                 # 5队 位置20-21
+        'D23','D24',                 # 6队 位置22-23
+    ]
 
-    # 2. 自动分配队长
-    # B1,B2拿最强队长,B3-B6按序分配
+    # 2. 自动分配队长: B1=第1名, B2=第2名
     pool_idx = 0
     for pos in ['B1', 'B2']:
         if pos not in b_assign:
             if pool_idx < len(auto_pool):
                 b_assign[pos] = auto_pool[pool_idx]
                 pool_idx += 1
+
+    # 3. D1=第3名, D9=第4名 (1队A/B各第1人)
+    if pool_idx < len(auto_pool):
+        d_assign['D1'] = auto_pool[pool_idx]; pool_idx += 1
+    if pool_idx < len(auto_pool):
+        d_assign['D9'] = auto_pool[pool_idx]; pool_idx += 1
+
+    # 4. B3-B6=第5-8名
     for pos in ['B3', 'B4', 'B5', 'B6']:
         if pos not in b_assign:
             if pool_idx < len(auto_pool):
                 b_assign[pos] = auto_pool[pool_idx]
                 pool_idx += 1
 
-    # 3. D列蛇形分配(所有非队长成员)
-    assigned_set = set()
-    for pos_data in list(b_assign.values()):
-        assigned_set.add(id(pos_data))
-    remaining = [m for m in auto_pool if id(m) not in assigned_set]
+    # 剩余成员（第9名开始）
+    remaining = auto_pool[pool_idx:]
 
-    # 按sort_key降序排,同分值随机打散
-    random.shuffle(remaining)
-    remaining.sort(key=lambda x: x[sort_key], reverse=True)
-
-    # 蛇形分配到所有D位置
-    # 策略:高值→1队2队(A/B组) → 3-6队,蛇形保证各队实力均衡
-    # 1队A→2队A→1队A→2队A→...→1队B→2队B→...→3队→4队→5队→6队→6队→5队→4队→3队
-    all_d_positions = [
-        # 1队2队A/B组(16个位置)
-        'D1','D5','D2','D6','D3','D7','D4','D8',       # A组蛇形
-        'D9','D13','D10','D14','D11','D15','D12','D16', # B组蛇形
-        # 3-6队(8个位置)
-        'D17','D19','D21','D23','D24','D22','D20','D18'  # 低队蛇形
+    # 蛇形分配剩余22人 → 22个D位（D1/D9已预分配）
+    # 蛇形顺序: 1队A→2队A→1队B→2队B→3队→4队→5队→6队→6队→5队→4队→3队
+    snake_positions = [
+        'D2','D5','D3','D6','D4','D7','D8',   # 1队A→2队A 蛇形（D1已占）
+        'D10','D13','D11','D14','D12','D15','D16',  # 1队B→2队B 蛇形（D9已占）
+        'D17','D19','D21','D23','D24','D22','D20','D18'  # 3-6队 蛇形
     ]
-    for i, pos in enumerate(all_d_positions):
+    for i, pos in enumerate(snake_positions):
         if i < len(remaining):
             d_assign[pos] = remaining[i]
 
@@ -1247,7 +1260,7 @@ def parse_guandu_xlsx(file) -> tuple:
         col0 = str(row[0]).strip() if row[0] else ''  # A列: "1队", "2队", "替补"
         col1 = str(row[1]).strip() if row[1] else ''  # B列: 队长名
         col2 = str(row[2]).strip() if row[2] else ''  # C列: A/B分组
-        col9 = str(row[9]).strip() if len(row) > 9 and row[9] else ''  # J列: 成员名
+        col3 = str(row[3]).strip() if len(row) > 3 and row[3] else ''  # D列: 成员名
 
         # 任务列 (E-G, index 4-6)
         task_0_10 = str(row[4]).strip() if len(row) > 4 and row[4] else ''
@@ -1281,14 +1294,16 @@ def parse_guandu_xlsx(file) -> tuple:
                 members.append(col1)
                 seen_names.add(col1)
 
-            # 队长行的 col9 成员(第一个队员)
-            if col9 and col9 not in seen_names:
-                for name in col9.replace(',', '、').split('、'):
+            # 队长行的 col3 成员(第一个队员)
+            if col3 and col3 not in seen_names:
+                for name in col3.replace(',', '、').split('、'):
                     name = name.strip()
                     if name and name not in seen_names:
                         members.append(name)
                         seen_names.add(name)
-                        if col2 == 'A':
+                        if current_team in ['3队', '4队', '5队', '6队']:
+                            teams_data[current_team]['A_members'].append(name)
+                        elif col2 == 'A':
                             teams_data[current_team]['A_members'].append(name)
                         elif col2 == 'B':
                             teams_data[current_team]['B_members'].append(name)
@@ -1309,24 +1324,36 @@ def parse_guandu_xlsx(file) -> tuple:
         if col0 == '队伍' or col0.startswith('团'):
             continue
 
-        # 队员行 (col2 是 A/B 分组)
-        if col2 in ['A', 'B'] and col9:
-            group = col2
-            for name in col9.replace(',', '、').split('、'):
-                name = name.strip()
-                if name and name not in seen_names:
-                    members.append(name)
-                    seen_names.add(name)
-                    if current_team:
-                        if group == 'A':
+        # 队员行 (D列有成员名)
+        if col3:
+            if col2 in ['A', 'B']:
+                # 1-2队: 有A/B分组
+                group = col2
+                for name in col3.replace(',', '、').split('、'):
+                    name = name.strip()
+                    if name and name not in seen_names:
+                        members.append(name)
+                        seen_names.add(name)
+                        if current_team:
+                            if group == 'A':
+                                teams_data[current_team]['A_members'].append(name)
+                            elif group == 'B':
+                                teams_data[current_team]['B_members'].append(name)
+                
+                # B 组任务(1-2队,从 B 组行的 F 列提取)
+                if group == 'B' and current_team in ['1队', '2队']:
+                    if task_10_20: teams_data[current_team]['B_tasks']['10-20'] = task_10_20
+                    if task_20_plus: teams_data[current_team]['B_tasks']['20+'] = task_20_plus
+            elif current_team in ['3队', '4队', '5队', '6队']:
+                # 3-6队: 无A/B分组,直接加入A_members
+                for name in col3.replace(',', '、').split('、'):
+                    name = name.strip()
+                    if name and name not in seen_names:
+                        pass
+                        members.append(name)
+                        seen_names.add(name)
+                        if current_team:
                             teams_data[current_team]['A_members'].append(name)
-                        elif group == 'B':
-                            teams_data[current_team]['B_members'].append(name)
-
-            # B 组任务(1-2队,从 B 组行的 F 列提取)
-            if group == 'B' and current_team in ['1队', '2队']:
-                if task_10_20: teams_data[current_team]['B_tasks']['10-20'] = task_10_20
-                if task_20_plus: teams_data[current_team]['B_tasks']['20+'] = task_20_plus
 
     wb.close()
     return members, bench, teams_data
