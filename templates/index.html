@@ -251,8 +251,8 @@
         <div class="container">
             <h1>官渡自动分配工具</h1>
             
-            <!-- 调试面板 -->
-            <div class="card" style="background:#ffe; border:2px solid #fc0; margin-bottom:16px">
+            <!-- 调试面板 (隐藏) -->
+            <div class="card" style="background:#ffe; border:2px solid #fc0; margin-bottom:16px" v-if="false">
                 <div style="font-weight:bold; color:#900; margin-bottom:8px">🔧 调试状态</div>
                 <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px; font-size:12px">
                     <div><b>statsLoaded:</b> {{ statsLoaded }}</div>
@@ -321,19 +321,65 @@
                             </label>
                         </div>
                         <div class="btn-group" style="margin-bottom:12px">
-                            <button class="btn btn-warning" @click="showManualMembers = !showManualMembers">
+                            <button class="btn btn-warning" @click="openManualPanel()">
                                 ➕ 手动添加
                             </button>
+                            <input type="file" ref="ocrInput" accept="image/*" style="display:none" @change="ocrMembers">
+                            <button class="btn btn-outline-primary" style="margin-left:8px" @click="ocrInput.click()">
+                                📷 OCR识别
+                            </button>
+                        </div>
+                        <!-- OCR 识别结果预览 -->
+                        <div v-if="ocrPreviewNames.length > 0" style="margin-bottom:12px;padding:12px;background:#e7f5ff;border-radius:8px;border:1px solid #74c0fc">
+                            <div style="font-size:13px;color:#1864ab;margin-bottom:8px">
+                                📷 OCR 识别到 {{ ocrPreviewNames.length }} 人，确认后加入列表（可编辑修改）：
+                            </div>
+                            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+                                <span v-for="(n, idx) in ocrPreviewNames" :key="idx"
+                                      style="background:#d0ebff;padding:3px 8px;border-radius:12px;font-size:13px;color:#1864ab;display:inline-flex;align-items:center;gap:3px">
+                                    <template v-if="ocrEditingIndex === idx">
+                                        <input type="text" v-model="ocrEditingText" @keyup.enter="confirmOcrEdit(idx)"
+                                               style="width:80px;font-size:13px;padding:2px 4px;border:1px solid #74c0fc;border-radius:4px;outline:none" />
+                                        <button @click="confirmOcrEdit(idx)"
+                                                style="background:none;border:none;cursor:pointer;color:green;font-size:12px;padding:0 2px">✅</button>
+                                        <button @click="ocrEditingIndex = -1"
+                                                style="background:none;border:none;cursor:pointer;color:#999;font-size:12px;padding:0 2px">❌</button>
+                                    </template>
+                                    <template v-else>
+                                        {{ n }}
+                                        <button @click="startOcrEdit(idx)"
+                                                style="background:none;border:none;cursor:pointer;color:#1864ab;font-size:11px;padding:0 1px;opacity:0.5">✏️</button>
+                                        <button @click="deleteOcrName(idx)"
+                                                style="background:none;border:none;cursor:pointer;color:#e03131;font-size:11px;padding:0 1px;opacity:0.5">🗑</button>
+                                    </template>
+                                </span>
+                            </div>
+                            <!-- 正式/候补切换（OCR专属） -->
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                                <span style="font-size:13px;color:#495057">加入：</span>
+                                <button type="button"
+                                    :style="manualMemberType === 'formal' ? 'padding:3px 10px;border:1px solid #28a745;background:#28a745;color:#fff;border-radius:4px;cursor:pointer;font-size:13px' : 'padding:3px 10px;border:1px solid #28a745;background:#fff;color:#28a745;border-radius:4px;cursor:pointer;font-size:13px'"
+                                    @click="manualMemberType = 'formal'">正式成员</button>
+                                <button type="button"
+                                    :style="manualMemberType === 'bench' ? 'padding:3px 10px;border:1px solid #6c757d;background:#6c757d;color:#fff;border-radius:4px;cursor:pointer;font-size:13px' : 'padding:3px 10px;border:1px solid #6c757d;background:#fff;color:#6c757d;border-radius:4px;cursor:pointer;font-size:13px'"
+                                    @click="manualMemberType = 'bench'">候补成员</button>
+                            </div>
+                            <div style="display:flex;gap:8px">
+                                <button class="btn btn-primary btn-sm" @click="confirmOcrMembers">✅ 确认加入</button>
+                                <button class="btn btn-outline-secondary btn-sm" @click="cancelOcrMembers">取消</button>
+                            </div>
                         </div>
                         <div v-show="showManualMembers" style="margin-bottom:12px;padding:12px;background:#fff3cd;border-radius:8px">
                             <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
                                 <div style="font-size:13px;color:#856404">加入：</div>
-                                <label style="cursor:pointer;font-size:14px;color:#28a745">
-                                    <input type="radio" v-model="manualMemberType" value="formal" style="margin-right:4px">正式成员
-                                </label>
-                                <label style="cursor:pointer;font-size:14px;color:#6c757d">
-                                    <input type="radio" v-model="manualMemberType" value="bench" style="margin-right:4px">候补成员
-                                </label>
+                                <div style="display:flex;gap:4px">
+                                    <button type="button"
+                                        :style="manualMemberType === 'formal' ? 'padding:4px 12px;border:1px solid #28a745;background:#28a745;color:#fff;border-radius:4px;cursor:pointer;font-size:13px' : 'padding:4px 12px;border:1px solid #28a745;background:#fff;color:#28a745;border-radius:4px;cursor:pointer;font-size:13px'"
+                                        @click="manualMemberType = 'formal'">正式成员</button>
+                                    <button type="button"
+                                        :style="manualMemberType === 'bench' ? 'padding:4px 12px;border:1px solid #6c757d;background:#6c757d;color:#fff;border-radius:4px;cursor:pointer;font-size:13px' : 'padding:4px 12px;border:1px solid #6c757d;background:#fff;color:#6c757d;border-radius:4px;cursor:pointer;font-size:13px'"
+                                        @click="manualMemberType = 'bench'">候补成员</button>
+                                </div>
                             </div>
                             <textarea v-model="manualMembersText" rows="4"
                                       style="width:100%;padding:8px;border:1px solid #ffc107;border-radius:4px;font-size:14px"
@@ -575,6 +621,10 @@
                 const showManualMembers = ref(false);
                 const manualMembersText = ref('');
                 const manualMemberType = ref('formal');
+                const ocrPreviewNames = ref([]);
+                const ocrInput = ref(null);
+                const ocrEditingIndex = ref(-1);
+                const ocrEditingText = ref('');
                 const teamsData = ref({});
                 const guanduFilename = ref('');
                 const unmatched = ref([]);
@@ -595,21 +645,65 @@
                             const tmp = bAssign.value[s.pos];
                             bAssign.value[s.pos] = bAssign.value[pos];
                             bAssign.value[pos] = tmp;
+                            syncTeamsData();
                         } else if (s.type === 'd' && type === 'd') {
                             // swap two members
                             const tmp = dAssign.value[s.pos];
                             dAssign.value[s.pos] = dAssign.value[pos];
                             dAssign.value[pos] = tmp;
+                            syncTeamsData();
                         } else if (s.type === 'b' && type === 'd') {
                             // swap captain with member
                             const tmp = bAssign.value[s.pos];
                             bAssign.value[s.pos] = dAssign.value[pos];
                             dAssign.value[pos] = tmp;
+                            syncTeamsData();
                         } else if (s.type === 'd' && type === 'b') {
                             // swap member with captain
                             const tmp = dAssign.value[s.pos];
                             dAssign.value[s.pos] = bAssign.value[pos];
                             bAssign.value[pos] = tmp;
+                            syncTeamsData();
+                        }
+                    }
+                };
+
+                // 同步 teamsData (任务列来源) 与 bAssign/dAssign 保持一致
+                const syncTeamsData = () => {
+                    if (!teamsData.value || Object.keys(teamsData.value).length === 0) return;
+                    for (const range of teamRanges) {
+                        const bPos = bPositions[range.bIdx];
+                        const captain = bAssign.value[bPos];
+                        const teamName = range.bIdx < 2 ? (range.bIdx + 1) + '队' : (range.bIdx + 1) + '队';
+                        const is12 = range.bIdx < 2;
+                        // 重建 A_members / B_members
+                        const aMembers = [];
+                        const bMembers = [];
+                        for (let j = 0; j < range.dCount; j++) {
+                            const dIdx = range.dStart + j;
+                            const dPos = dPositions[dIdx];
+                            const m = dAssign.value[dPos];
+                            if (m && m.original) {
+                                if (is12) {
+                                    if (j < 4) aMembers.push(m.original);
+                                    else bMembers.push(m.original);
+                                } else {
+                                    aMembers.push(m.original);
+                                }
+                            }
+                        }
+                        // 队长放 A 组第一个
+                        if (captain && captain.original) {
+                            if (is12) aMembers.unshift(captain.original);
+                            else aMembers.unshift(captain.original);
+                        }
+                        if (is12) {
+                            teamsData.value[teamName] = teamsData.value[teamName] || {};
+                            teamsData.value[teamName].A_members = aMembers;
+                            teamsData.value[teamName].B_members = bMembers;
+                        } else {
+                            teamsData.value[teamName] = teamsData.value[teamName] || {};
+                            teamsData.value[teamName].A_members = aMembers;
                         }
                     }
                 };
@@ -1028,6 +1122,7 @@
                     try {
                         // 如果 teamsData 为空，先从后端加载
                         let td = teamsData.value;
+                        console.log('[export] teamsData=', JSON.stringify(Object.keys(td||{})));
                         if (!td || Object.keys(td).length === 0) {
                             try {
                                 const gr = await fetch('/api/load_guandu?section=' + encodeURIComponent(selectedSection.value));
@@ -1089,13 +1184,23 @@
                     }
                 };
 
+                // 打开手动添加面板时，强制重置 radio 到"正式成员"，避免残留状态导致两个都选中
+                const openManualPanel = () => {
+                    manualMemberType.value = 'formal';
+                    manualMembersText.value = '';
+                    showManualMembers.value = true;
+                };
+
                 const clearAllMembers = () => {
-                    // Remove manually added members from members/benchMembers
-                    const formalNames = attMembers.value.filter(m => m.type === 'formal').map(m => m.name);
-                    const benchNames = attMembers.value.filter(m => m.type === 'bench').map(m => m.name);
-                    members.value = members.value.filter(m => !formalNames.includes(m));
-                    benchMembers.value = benchMembers.value.filter(m => !benchNames.includes(m));
+                    // 清空所有成员列表（手动添加的 + 文件加载的）
+                    members.value = [];
+                    benchMembers.value = [];
                     attMembers.value = [];
+                    manualMembersText.value = '';
+                    // 重置匹配状态，避免残留旧数据
+                    matchDone.value = false;
+                    unmatched.value = [];
+                    nameMap.value = {};
                 };
 
                 const deleteAttMember = (name) => {
@@ -1108,6 +1213,67 @@
                         }
                     }
                     attMembers.value = attMembers.value.filter(m => m.name !== name);
+                };
+
+                const ocrMembers = async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    loading.value = true;
+                    loadingText.value = 'OCR识别中...';
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        const res = await fetch('/api/ocr_members', { method: 'POST', body: formData });
+                        const json = await res.json();
+                        if (json.success && json.names && json.names.length > 0) {
+                            ocrPreviewNames.value = json.names;
+                        } else if (json.success && json.names && json.names.length === 0) {
+                            alert('未识别到任何成员名字，请尝试其他图片或手动输入');
+                        } else {
+                            alert('OCR识别失败: ' + (json.error || '未知错误'));
+                        }
+                    } catch(e) {
+                        alert('OCR识别失败');
+                    } finally {
+                        loading.value = false;
+                        event.target.value = '';
+                    }
+                };
+
+                const startOcrEdit = (idx) => {
+                    ocrEditingIndex.value = idx;
+                    ocrEditingText.value = ocrPreviewNames.value[idx];
+                };
+                const confirmOcrEdit = (idx) => {
+                    const newName = ocrEditingText.value.trim();
+                    if (newName && newName.length >= 2) {
+                        ocrPreviewNames.value[idx] = newName;
+                    }
+                    ocrEditingIndex.value = -1;
+                };
+                const deleteOcrName = (idx) => {
+                    ocrPreviewNames.value.splice(idx, 1);
+                    if (ocrEditingIndex.value === idx) ocrEditingIndex.value = -1;
+                };
+
+                const confirmOcrMembers = () => {
+                    const type = manualMemberType.value;
+                    for (const n of ocrPreviewNames.value) {
+                        const name = n.trim();
+                        if (!name) continue;
+                        if (type === 'formal') {
+                            if (!members.value.includes(name)) members.value.push(name);
+                        } else {
+                            if (!benchMembers.value.includes(name)) benchMembers.value.push(name);
+                        }
+                    }
+                    ocrPreviewNames.value = [];
+                    ocrEditingIndex.value = -1;
+                };
+
+                const cancelOcrMembers = () => {
+                    ocrPreviewNames.value = [];
+                    ocrEditingIndex.value = -1;
                 };
 
                 const parseManualMembers = () => {
@@ -1205,7 +1371,8 @@
                     sections, selectedSection, stats, statsLoaded, statsCount, statsFilename,
                     members, benchMembers, teamsData, guanduFilename, unmatched,
                     attMembers, showManualMembers, manualMembersText, manualMemberType,
-                    addAttMember, deleteAttMember, parseManualMembers, clearAllMembers,
+                    ocrPreviewNames, ocrInput, ocrEditingIndex, ocrEditingText,
+                    addAttMember, deleteAttMember, parseManualMembers, clearAllMembers, openManualPanel, ocrMembers, startOcrEdit, confirmOcrEdit, deleteOcrName, confirmOcrMembers, cancelOcrMembers,
                     nameMap, threshold, randomSeed, manualCaptains, matchDone, assignmentDone, loading, loadingText,
                     bAssign, dAssign, sortedMembers, debugLog,
                     bPositions, dPositions,

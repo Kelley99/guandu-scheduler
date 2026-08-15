@@ -733,11 +733,13 @@ def assign_members(members: list, stats: dict, name_map: dict, threshold: float 
     remaining = auto_pool[pool_idx:]
 
     # 蛇形分配剩余22人 → 22个D位（D1/D9已预分配）
-    # 蛇形顺序: 1队A→2队A→1队B→2队B→3队→4队→5队→6队→6队→5队→4队→3队
+    # 全蛇形：1队A↔2队A蛇形，1队B↔2队B↔3-6队蛇形
+    # D1已占(第3名)，D9已占(第4名)
     snake_positions = [
-        'D2','D5','D3','D6','D4','D7','D8',   # 1队A→2队A 蛇形（D1已占）
-        'D10','D13','D11','D14','D12','D15','D16',  # 1队B→2队B 蛇形（D9已占）
-        'D17','D19','D21','D23','D24','D22','D20','D18'  # 3-6队 蛇形
+        'D2','D10','D11','D3','D4','D12',                    # 1队A↔2队A 蛇形
+        'D5','D13','D17','D19','D21','D23',                  # 1队B→2队B→3-6队 蛇形第1轮
+        'D14','D6','D7','D15','D16','D8',                    # 2队B→1队B 蛇形第2轮
+        'D24','D22','D20','D18',                              # 3-6队 蛇形第2轮
     ]
     for i, pos in enumerate(snake_positions):
         if i < len(remaining):
@@ -988,87 +990,83 @@ def parse_stats_csv(content: str) -> dict:
 
 
 def parse_stats_xlsx(file) -> dict:
-    """解析Excel格式的属性表（支持属性表和成员表两种格式）"""
+    """解析Excel格式的属性表（支持属性表和成员表两种格式，多sheet合并）"""
     wb = openpyxl.load_workbook(file, read_only=True)
-    ws = wb.active
 
     stats = {}
-    header = None
-    hp_idx = None
-    total_idx = None
-    power_idx = None
-    # 成员表格式：列B=姓名，列E=战力（无hp/total）
-    is_member_table = False
-    # 跳过标题行（如"表格 1"）
-    row_count = 0
 
-    for row in ws.iter_rows(values_only=True):
-        row_count += 1
-        if not header:
-            header = row
-            for i, col in enumerate(row):
-                if col and ('步兵生命值' in str(col) or '生命值' in str(col) or 'HP' in str(col).upper()):
-                    hp_idx = i
-                elif col and ('六维属性总和' in str(col) or '六维总和' in str(col)):
-                    total_idx = i
-                elif col and '战力' in str(col):
-                    power_idx = i
-            # 判断是否是成员表格式（没有hp/total但有战力）
-            if hp_idx is None and total_idx is None and power_idx is not None:
-                is_member_table = True
-            # 如果第一行没有找到关键列但第二行有，跳到第二行
-            if power_idx is None and row_count == 1:
-                header = None  # 继续读下一行
+    for ws in wb.worksheets:
+        header = None
+        hp_idx = None
+        total_idx = None
+        power_idx = None
+        is_member_table = False
+        row_count = 0
+
+        for row in ws.iter_rows(values_only=True):
+            row_count += 1
+            if not header:
+                header = row
+                for i, col in enumerate(row):
+                    if col and ('步兵生命值' in str(col) or '生命值' in str(col) or 'HP' in str(col).upper()):
+                        hp_idx = i
+                    elif col and ('六维属性总和' in str(col) or '六维总和' in str(col)):
+                        total_idx = i
+                    elif col and '战力' in str(col):
+                        power_idx = i
+                if hp_idx is None and total_idx is None and power_idx is not None:
+                    is_member_table = True
+                if power_idx is None and row_count == 1:
+                    header = None
+                    continue
                 continue
-            continue
 
-        if is_member_table:
-            # 成员表格式：列B(索引1)=姓名，列E(索引4)=战力
-            name = str(row[1]).strip() if len(row) > 1 and row[1] else ''
+            if is_member_table:
+                name = str(row[1]).strip() if len(row) > 1 and row[1] else ''
+                if not name or name.isdigit():
+                    continue
+                power = 0
+                if power_idx is not None and len(row) > power_idx and row[power_idx]:
+                    try: power = float(row[power_idx])
+                    except: pass
+                stats[name] = {'hp': 0, 'total': 0, 'power': power}
+                continue
+
+            if len(row) < 2:
+                continue
+
+            name = str(row[1]).strip() if len(row) > 1 and row[1] else str(row[0]).strip() if row[0] else ''
             if not name or name.isdigit():
                 continue
+
+            hp = 0
+            total = 0
             power = 0
+
+            if hp_idx is not None and len(row) > hp_idx and row[hp_idx]:
+                try: hp = float(row[hp_idx])
+                except: pass
+            if total_idx is not None and len(row) > total_idx and row[total_idx]:
+                try: total = float(row[total_idx])
+                except: pass
             if power_idx is not None and len(row) > power_idx and row[power_idx]:
                 try: power = float(row[power_idx])
                 except: pass
-            stats[name] = {'hp': 0, 'total': 0, 'power': power}
-            continue
 
-        if len(row) < 2:
-            continue
+            if hp > 100000 or (hp == 0 and total == 0 and power == 0):
+                for val in row:
+                    try:
+                        v = float(val) if val else 0
+                        if 100 <= v <= 5000:
+                            hp = v
+                            break
+                    except:
+                        pass
 
-        name = str(row[1]).strip() if len(row) > 1 and row[1] else str(row[0]).strip() if row[0] else ''
-        if not name or name.isdigit():
-            continue
+            if hp > 100000:
+                hp = 0
 
-        hp = 0
-        total = 0
-        power = 0
-
-        if hp_idx is not None and len(row) > hp_idx and row[hp_idx]:
-            try: hp = float(row[hp_idx])
-            except: pass
-        if total_idx is not None and len(row) > total_idx and row[total_idx]:
-            try: total = float(row[total_idx])
-            except: pass
-        if power_idx is not None and len(row) > power_idx and row[power_idx]:
-            try: power = float(row[power_idx])
-            except: pass
-
-        if hp > 100000 or (hp == 0 and total == 0 and power == 0):
-            for val in row:
-                try:
-                    v = float(val) if val else 0
-                    if 100 <= v <= 5000:
-                        hp = v
-                        break
-                except:
-                    pass
-
-        if hp > 100000:
-            hp = 0
-
-        stats[name] = {'hp': hp, 'total': total, 'power': power}
+            stats[name] = {'hp': hp, 'total': total, 'power': power}
 
     wb.close()
     return stats
@@ -1130,6 +1128,13 @@ def upload_guandu():
             members, bench = parse_guandu_csv(content)
 
         elif ext == 'xlsx':
+            # 保存上传的xlsx到 knowledge-base 供回退使用
+            file.seek(0)
+            xlsx_bytes = file.read()
+            saved_path = os.path.join(DATA_DIR, f'guandu_{section}.xlsx')
+            with open(saved_path, 'wb') as sf:
+                sf.write(xlsx_bytes)
+            file.seek(0)
             members, bench, teams_data = parse_guandu_xlsx(file)
             app.logger.info(f'xlsx解析: members={len(members)}, bench={len(bench)}, teams={len(teams_data)}')
 
@@ -1308,13 +1313,12 @@ def parse_guandu_xlsx(file) -> tuple:
                         elif col2 == 'B':
                             teams_data[current_team]['B_members'].append(name)
 
-            # 提取该队 A 组任务(从队长行的 E-G 列)
+            # 提取任务(队长行的 E-G 列,必须在 continue 前执行)
             if current_team in ['1队', '2队']:
                 if task_0_10: teams_data[current_team]['A_tasks']['0-10'] = task_0_10
                 if task_10_20: teams_data[current_team]['A_tasks']['10-20'] = task_10_20
                 if task_20_plus: teams_data[current_team]['A_tasks']['20+'] = task_20_plus
             else:
-                # 3-6队:只有 A 组,任务在 E 列(0-10分钟)
                 if task_0_10: teams_data[current_team]['A_tasks']['0-10'] = task_0_10
                 if task_10_20: teams_data[current_team]['A_tasks']['10-20'] = task_10_20
                 if task_20_plus: teams_data[current_team]['A_tasks']['20+'] = task_20_plus
@@ -1382,6 +1386,75 @@ def match_members_api():
         'matched': matched,
         'unmatched': unmatched,
     })
+
+
+def _is_likely_name(text):
+    text = text.strip()
+    if not text or len(text) < 2 or len(text) > 12:
+        return False
+    if not re.search(r'[\u4e00-\u9fff]', text):
+        return False
+    if re.fullmatch(r'[a-zA-Z0-9\s,，。.]+', text):
+        return False
+    noise = ['确定','取消','管理','成员','同盟','联盟','排行','排名','攻击','防御',
+             '生命','战力','等级','坐标','首页','上页','下页','退出','设置','帮助',
+             '消息','邮件','战斗','资源','建筑','科技','任务','奖励','官渡','集结',
+             '待命','出击','驻守','返回','指挥','军团','指挥中心']
+    for w in noise:
+        if w in text:
+            return False
+    if re.search(r'\d{1,3}[,，:]\d{1,3}', text):
+        return False
+    return True
+
+
+@app.route('/api/ocr_members', methods=['POST'])
+def ocr_members_api():
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'no file'})
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({'success': False, 'error': 'no filename'})
+    suffix = secure_filename(file.filename).rsplit('.', 1)[-1].lower()
+    if suffix not in ('png','jpg','jpeg','webp','bmp','gif'):
+        return jsonify({'success': False, 'error': 'unsupported format'})
+    import tempfile, os as _os
+    with tempfile.NamedTemporaryFile(suffix='.'+suffix, delete=False) as tmp:
+        tmp_path = tmp.name
+        file.save(tmp_path)
+    try:
+        results = tencent_ocr(tmp_path)
+        lines = []
+        for bbox, text, conf in results:
+            if not text or conf < 60:
+                continue
+            text = text.strip()
+            if not text:
+                continue
+            y = bbox[0][1] if bbox else 0
+            x = bbox[0][0] if bbox else 0
+            lines.append((y, x, text))
+        lines.sort(key=lambda t: (t[0], t[1]))
+        names = []
+        seen = set()
+        for _, _, text in lines:
+            if _is_likely_name(text):
+                parts = re.split(r'[,，、\s]+', text)
+                for part in parts:
+                    part = part.strip()
+                    if _is_likely_name(part) and part not in seen:
+                        seen.add(part)
+                        names.append(part)
+        print(f'[ocr_members] found {len(names)} names: {names[:10]}')
+        return jsonify({'success': True, 'names': names})
+    except Exception as e:
+        print(f'[ocr_members] error: {e}')
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
 
 
 @app.route('/api/assign', methods=['POST'])
@@ -1466,13 +1539,62 @@ def export_api():
     sort_by = data.get('sort_by', 'hp')
     teams_data = data.get('teams_data', {})
     bench_task = data.get('bench_task', '')
+    
+    # 如果 teams_data 为空,尝试从 .md 或已知 Excel 解析
+    if not teams_data or not any(t.get('A_tasks', {}).get('0-10') or t.get('A_tasks', {}).get('10-20') for t in teams_data.values() if isinstance(t, dict)):
+        print(f'[export_api] teams_data 无任务, section={section}, 尝试回退解析')
+        # 尝试从 .md 解析
+        try:
+            with open(GUANDU_FILE, 'r', encoding='utf-8') as f:
+                content = f.read()
+            data = parse_guandu_table(content, section)
+            if data.get('teams') and any(
+                t.get('A_tasks', {}).get('0-10') or t.get('A_tasks', {}).get('10-20') or t.get('B_tasks', {}).get('10-20') or t.get('B_tasks', {}).get('20+')
+                for t in data['teams'].values() if isinstance(t, dict)
+            ):
+                teams_data = data['teams']
+                print(f'[export_api] 从 .md 回退成功, teams={list(teams_data.keys())}')
+        except Exception as e:
+            print(f'[export_api] .md 回退失败: {e}')
+        
+        # 如果 .md 也没有,尝试从已知 Excel 解析
+        if not teams_data or not any(
+            t.get('A_tasks', {}).get('0-10') or t.get('A_tasks', {}).get('10-20') or t.get('B_tasks', {}).get('10-20') or t.get('B_tasks', {}).get('20+')
+            for t in teams_data.values() if isinstance(t, dict)
+        ):
+            import glob
+            # 团一无数据时，优先尝试用团二的xlsx作结构模板
+            fallback_files = []
+            if section == '团一':
+                section_other = '团二'
+                xlsx_fallback = os.path.join(DATA_DIR, f'guandu_{section_other}.xlsx')
+                if os.path.exists(xlsx_fallback):
+                    fallback_files.append(xlsx_fallback)
+            # 扫描其他 guandu_*.xlsx
+            xlsx_files = glob.glob(os.path.join(DATA_DIR, 'guandu_*.xlsx'))
+            for xf in xlsx_files:
+                if xf not in fallback_files:
+                    fallback_files.append(xf)
+            for xlsx_path in fallback_files:
+                try:
+                    with open(xlsx_path, 'rb') as f:
+                        _, _, xlsx_teams = parse_guandu_xlsx(f)
+                    if xlsx_teams and any(
+                        t.get('A_tasks', {}).get('0-10') or t.get('A_tasks', {}).get('10-20') or t.get('B_tasks', {}).get('10-20') or t.get('B_tasks', {}).get('20+')
+                        for t in xlsx_teams.values() if isinstance(t, dict)
+                    ):
+                        teams_data = xlsx_teams
+                        print(f'[export_api] 从 Excel 回退成功: {xlsx_path}, teams={list(teams_data.keys())}')
+                        break
+                except Exception as e:
+                    print(f'[export_api] Excel 回退失败: {e}')
 
     # 队伍到D位置的映射
     # 1队2队: A组4人 + B组4人 = 8行队员
     # 3-6队: 无分组, 2行队员
     team_d_map = {
-        1: {'a': ['D1','D2','D3','D4'], 'b': ['D9','D10','D11','D12']},
-        2: {'a': ['D5','D6','D7','D8'], 'b': ['D13','D14','D15','D16']},
+        1: {'a': ['D1','D2','D3','D4'], 'b': ['D5','D6','D7','D8']},
+        2: {'a': ['D9','D10','D11','D12'], 'b': ['D13','D14','D15','D16']},
         3: {'members': ['D17','D18']},
         4: {'members': ['D19','D20']},
         5: {'members': ['D21','D22']},
