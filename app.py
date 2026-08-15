@@ -1524,7 +1524,7 @@ def export_api():
 
     # 样式
     header_font = Font(bold=True, size=12)
-    captain_font = Font(bold=True, size=11, color='1a1a2e')
+    captain_font = Font(bold=True, size=13, color='1a1a2e')
     center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
     thin_border = Border(
         left=Side(style='thin'), right=Side(style='thin'),
@@ -1532,6 +1532,25 @@ def export_api():
     )
     header_fill = PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid')
     captain_fill = PatternFill(start_color='FFF3CD', end_color='FFF3CD', fill_type='solid')
+
+    # 队伍配色（6队各一色，用于区分）
+    team_colors = {
+        1: 'FFB300',  # 琥珀黄
+        2: '29B6F6',  # 天蓝
+        3: '66BB6A',  # 绿
+        4: 'EF5350',  # 红
+        5: 'AB47BC',  # 紫
+        6: 'FF7043',  # 橙
+    }
+    # 队伍浅色底纹（用于整队行背景）
+    team_tints = {
+        1: 'FFF8E1',
+        2: 'E1F5FE',
+        3: 'E8F5E9',
+        4: 'FFEBEE',
+        5: 'F3E5F5',
+        6: 'FBE9E7',
+    }
 
     b_assign = data.get('b_assign', {})
     d_assign = data.get('d_assign', {})
@@ -1647,6 +1666,9 @@ def export_api():
             a_tasks = tdata.get('A_tasks', {})
             b_tasks = tdata.get('B_tasks', {})
 
+            team_color = team_colors.get(team_num, 'FFFFFF')
+            team_tint = team_tints.get(team_num, 'FFFFFF')
+
             team_start_row = row
             a_start_row = row
 
@@ -1655,9 +1677,9 @@ def export_api():
                 d_data = d_assign.get(dk, {})
                 m_name = d_data.get('original', '') if d_data else ''
                 m_score = d_data.get(sort_by, 0) if d_data else 0
-                set_cell(ws, row, 3, 'A', align=center_align, border=thin_border)
-                set_cell(ws, row, 4, m_name, border=thin_border)
-                set_cell(ws, row, 8, '', border=thin_border)
+                set_cell(ws, row, 3, 'A', align=center_align, border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
+                set_cell(ws, row, 4, m_name, border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
+                set_cell(ws, row, 8, '', border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
                 row += 1
             a_end_row = row - 1
 
@@ -1667,9 +1689,9 @@ def export_api():
             for i, dk in enumerate(b_keys):
                 d_data = d_assign.get(dk, {})
                 m_name = d_data.get('original', '') if d_data else ''
-                set_cell(ws, row, 3, 'B', align=center_align, border=thin_border)
-                set_cell(ws, row, 4, m_name, border=thin_border)
-                set_cell(ws, row, 8, '', border=thin_border)
+                set_cell(ws, row, 3, 'B', align=center_align, border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
+                set_cell(ws, row, 4, m_name, border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
+                set_cell(ws, row, 8, '', border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
                 row += 1
             b_end_row = row - 1
             team_end_row = row - 1
@@ -1677,44 +1699,44 @@ def export_api():
             # --- 合并单元格:队伍名(全队8行) ---
             if team_end_row > team_start_row:
                 ws.merge_cells(start_row=team_start_row, start_column=1, end_row=team_end_row, end_column=1)
-            set_cell(ws, team_start_row, 1, team_name, font=Font(bold=True, size=12), align=center_align, border=thin_border)
+            set_cell(ws, team_start_row, 1, team_name, font=Font(bold=True, size=13, color='FFFFFF'), align=center_align, border=thin_border, fill=PatternFill(start_color=team_color, fill_type='solid'))
             apply_border_range(ws, team_start_row, 1, team_end_row, 1)
 
             # --- 合并单元格:队长(全队8行) ---
             if team_end_row > team_start_row:
                 ws.merge_cells(start_row=team_start_row, start_column=2, end_row=team_end_row, end_column=2)
-            set_cell(ws, team_start_row, 2, captain, font=captain_font, fill=captain_fill, align=center_align, border=thin_border)
+            set_cell(ws, team_start_row, 2, captain, font=captain_font, fill=PatternFill(start_color=team_color, fill_type='solid'), align=center_align, border=thin_border)
             apply_border_range(ws, team_start_row, 2, team_end_row, 2)
 
             # --- 合并单元格:0-10分钟任务(全队8行) ---
             task_010 = a_tasks.get('0-10', '')
-            if team_end_row > team_start_row:
+            if task_010 and team_end_row > team_start_row:
                 ws.merge_cells(start_row=team_start_row, start_column=5, end_row=team_end_row, end_column=5)
-            set_cell(ws, team_start_row, 5, task_010, align=Alignment(wrap_text=True, vertical='center'), border=thin_border)
-            apply_border_range(ws, team_start_row, 5, team_end_row, 5)
+                set_cell(ws, team_start_row, 5, task_010, align=Alignment(wrap_text=True, vertical='center'), border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
+                apply_border_range(ws, team_start_row, 5, team_end_row, 5)
 
             # --- 合并单元格:A组 10-20分钟(4行) ---
             if a_end_row > a_start_row:
                 ws.merge_cells(start_row=a_start_row, start_column=6, end_row=a_end_row, end_column=6)
-            set_cell(ws, a_start_row, 6, a_tasks.get('10-20', ''), align=Alignment(wrap_text=True, vertical='center'), border=thin_border)
+            set_cell(ws, a_start_row, 6, a_tasks.get('10-20', ''), align=Alignment(wrap_text=True, vertical='center'), border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
             apply_border_range(ws, a_start_row, 6, a_end_row, 6)
 
             # --- 合并单元格:A组 20+分钟(4行) ---
             if a_end_row > a_start_row:
                 ws.merge_cells(start_row=a_start_row, start_column=7, end_row=a_end_row, end_column=7)
-            set_cell(ws, a_start_row, 7, a_tasks.get('20+', ''), align=Alignment(wrap_text=True, vertical='center'), border=thin_border)
+            set_cell(ws, a_start_row, 7, a_tasks.get('20+', ''), align=Alignment(wrap_text=True, vertical='center'), border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
             apply_border_range(ws, a_start_row, 7, a_end_row, 7)
 
             # --- 合并单元格:B组 10-20分钟(4行) ---
             if b_end_row > b_start_row:
                 ws.merge_cells(start_row=b_start_row, start_column=6, end_row=b_end_row, end_column=6)
-            set_cell(ws, b_start_row, 6, b_tasks.get('10-20', ''), align=Alignment(wrap_text=True, vertical='center'), border=thin_border)
+            set_cell(ws, b_start_row, 6, b_tasks.get('10-20', ''), align=Alignment(wrap_text=True, vertical='center'), border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
             apply_border_range(ws, b_start_row, 6, b_end_row, 6)
 
             # --- 合并单元格:B组 20+分钟(4行) ---
             if b_end_row > b_start_row:
                 ws.merge_cells(start_row=b_start_row, start_column=7, end_row=b_end_row, end_column=7)
-            set_cell(ws, b_start_row, 7, b_tasks.get('20+', ''), align=Alignment(wrap_text=True, vertical='center'), border=thin_border)
+            set_cell(ws, b_start_row, 7, b_tasks.get('20+', ''), align=Alignment(wrap_text=True, vertical='center'), border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
             apply_border_range(ws, b_start_row, 7, b_end_row, 7)
 
         else:
@@ -1722,6 +1744,9 @@ def export_api():
             member_keys = tmap.get('members', [])
             tdata = teams_data.get(team_name, {})
             a_tasks = tdata.get('A_tasks', {})
+
+            team_color = team_colors.get(team_num, 'FFFFFF')
+            team_tint = team_tints.get(team_num, 'FFFFFF')
 
             # 收集有数据的队员
             filled_members = []
@@ -1734,70 +1759,55 @@ def export_api():
             team_start_row = row
             # 写入队员行
             for i, (m_name, m_score) in enumerate(filled_members):
-                set_cell(ws, row, 4, m_name, border=thin_border)
-                set_cell(ws, row, 8, '', border=thin_border)
+                set_cell(ws, row, 4, m_name, border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
+                set_cell(ws, row, 8, '', border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
                 row += 1
             team_end_row = row - 1
 
             # 如果没有队员,至少写一行
             if not filled_members:
-                set_cell(ws, row, 4, '', border=thin_border)
-                set_cell(ws, row, 8, '', border=thin_border)
+                set_cell(ws, row, 4, '', border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
+                set_cell(ws, row, 8, '', border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
                 team_end_row = row
                 row += 1
 
             # --- 合并单元格:队伍名 ---
             if team_end_row > team_start_row:
                 ws.merge_cells(start_row=team_start_row, start_column=1, end_row=team_end_row, end_column=1)
-            set_cell(ws, team_start_row, 1, team_name, font=Font(bold=True, size=12), align=center_align, border=thin_border)
+            set_cell(ws, team_start_row, 1, team_name, font=Font(bold=True, size=13, color='FFFFFF'), align=center_align, border=thin_border, fill=PatternFill(start_color=team_color, fill_type='solid'))
             apply_border_range(ws, team_start_row, 1, team_end_row, 1)
 
             # --- 合并单元格:队长 ---
             if team_end_row > team_start_row:
                 ws.merge_cells(start_row=team_start_row, start_column=2, end_row=team_end_row, end_column=2)
-            set_cell(ws, team_start_row, 2, captain, font=captain_font, fill=captain_fill, align=center_align, border=thin_border)
+            set_cell(ws, team_start_row, 2, captain, font=captain_font, fill=PatternFill(start_color=team_color, fill_type='solid'), align=center_align, border=thin_border)
             apply_border_range(ws, team_start_row, 2, team_end_row, 2)
 
-            # --- 任务列 ---
+            # --- 任务列: 每队独立写入 0-10 / 10-20 / 20+ ---
             task_010 = a_tasks.get('0-10', '')
             task_1020 = a_tasks.get('10-20', '')
             task_20plus = a_tasks.get('20+', '')
 
-            if team_num <= 5:
-                # === 3-5队 ===
-                # E列(0-10分钟):每队的任务相同,队内垂直合并
-                f_content = task_1020  # 实际内容来自10-20分钟字段
-                if f_content:
-                    if team_end_row > team_start_row:
-                        ws.merge_cells(start_row=team_start_row, start_column=5, end_row=team_end_row, end_column=5)
-                    set_cell(ws, team_start_row, 5, f_content, align=Alignment(wrap_text=True, vertical='center'), border=thin_border)
-                    apply_border_range(ws, team_start_row, 5, team_end_row, 5)
-
-                # F:G列(10-20分钟+20分钟以后):3-5队任务一样,记录起止行,循环结束后统一跨队合并
-                if team_num == 3:
-                    group_35_start_row = team_start_row
-                    group_35_gh_content = task_20plus  # 使用3队的20+任务内容
-                if team_num == 5:
-                    group_35_end_row = team_end_row
-
-            else:
-                # === 6队 ===
-                # E:F合并(0-10+10-20分钟),内容=task_1020
-                ws.merge_cells(start_row=team_start_row, start_column=5, end_row=team_end_row, end_column=6)
-                set_cell(ws, team_start_row, 5, task_1020, align=Alignment(wrap_text=True, vertical='center'), border=thin_border)
-                apply_border_range(ws, team_start_row, 5, team_end_row, 6)
-
-                # G列(20分钟以后)合并,内容=task_20plus
+            # E列(0-10分钟)
+            if task_010:
+                if team_end_row > team_start_row:
+                    ws.merge_cells(start_row=team_start_row, start_column=5, end_row=team_end_row, end_column=5)
+                set_cell(ws, team_start_row, 5, task_010, align=Alignment(wrap_text=True, vertical='center'), border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
+                apply_border_range(ws, team_start_row, 5, team_end_row, 5)
+            # F列(10-20分钟)
+            if task_1020:
+                if team_end_row > team_start_row:
+                    ws.merge_cells(start_row=team_start_row, start_column=6, end_row=team_end_row, end_column=6)
+                set_cell(ws, team_start_row, 6, task_1020, align=Alignment(wrap_text=True, vertical='center'), border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
+                apply_border_range(ws, team_start_row, 6, team_end_row, 6)
+            # G列(20分钟以后)
+            if task_20plus:
                 if team_end_row > team_start_row:
                     ws.merge_cells(start_row=team_start_row, start_column=7, end_row=team_end_row, end_column=7)
-                set_cell(ws, team_start_row, 7, task_20plus, align=Alignment(wrap_text=True, vertical='center'), border=thin_border)
+                set_cell(ws, team_start_row, 7, task_20plus, align=Alignment(wrap_text=True, vertical='center'), border=thin_border, fill=PatternFill(start_color=team_tint, fill_type='solid'))
                 apply_border_range(ws, team_start_row, 7, team_end_row, 7)
 
-    # --- 3-5队 G:H跨队合并(10-20分钟+20分钟以后任务相同) ---
-    if group_35_start_row and group_35_end_row:
-        ws.merge_cells(start_row=group_35_start_row, start_column=6, end_row=group_35_end_row, end_column=7)
-        set_cell(ws, group_35_start_row, 6, group_35_gh_content, align=Alignment(wrap_text=True, vertical='center'), border=thin_border)
-        apply_border_range(ws, group_35_start_row, 6, group_35_end_row, 7)
+    # --- 跨队合并块已移除（3-6队任务改为每队独立写入） ---
 
     # 调整列宽
     ws.column_dimensions['A'].width = 8

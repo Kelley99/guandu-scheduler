@@ -383,7 +383,7 @@
                             </div>
                             <textarea v-model="manualMembersText" rows="4"
                                       style="width:100%;padding:8px;border:1px solid #ffc107;border-radius:4px;font-size:14px"
-                                      placeholder="张三&#10;李四&#10;王五"></textarea>
+                                      placeholder="张三 李四 王五（支持换行、逗号、顿号、空格分隔）"></textarea>
                             <div style="margin-top:8px;display:flex;gap:8px">
                                 <button class="btn btn-warning" @click="parseManualMembers">✅ 添加</button>
                                 <button class="btn btn-outline-danger" @click="clearAllMembers" style="font-size:13px;padding:4px 12px">🗑 清空名单</button>
@@ -447,17 +447,24 @@
                 <!-- 未匹配成员 - 始终显示（非弹窗） -->
                 <div v-if="unmatched.length > 0" style="margin-top:16px">
                     <div class="alert alert-warning" style="margin-bottom:8px">
-                        ⚠️ {{ unmatched.length }} 个成员未匹配到属性数据，请手动选择对应成员
+                        ⚠️ {{ unmatched.length }} 个成员未匹配到属性数据，请手动选择对应成员（支持模糊搜索属性表）
                     </div>
-                    <div v-for="(item, index) in unmatched" :key="index" class="match-item" style="background:#fff;border:1px solid #ffc107;border-radius:8px;margin-bottom:8px">
-                        <span class="orig" style="min-width:120px;font-weight:bold">{{ item.original }}</span>
-                        <span>匹配为:</span>
-                        <select v-model="item.manualMatch" style="flex:1;min-width:150px;padding:8px;border:1px solid #ddd;border-radius:4px">
-                            <option value="">-- 跳过 --</option>
-                            <option v-for="name in statNames" :key="name" :value="name">
-                                {{ name }} ({{ getStatLabel(name) }})
-                            </option>
-                        </select>
+                    <div v-for="(item, index) in unmatched" :key="index" class="match-item" style="background:#fff;border:1px solid #ffc107;border-radius:8px;margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span class="orig" style="min-width:120px;font-weight:bold">{{ item.original }}</span>
+                            <span style="color:#666">→</span>
+                            <span v-if="item.manualMatch" style="color:#28a745;font-weight:bold">{{ item.manualMatch }}</span>
+                            <span v-else style="color:#999">未选择</span>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input v-model="item.search" placeholder="输入关键字模糊搜索属性表..." style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px">
+                            <select v-model="item.manualMatch" style="flex:1;min-width:150px;padding:8px;border:1px solid #ddd;border-radius:4px">
+                                <option value="">-- 跳过 / 手动选择 --</option>
+                                <option v-for="name in fuzzyMatches(item)" :key="name" :value="name">
+                                    {{ name }} ({{ getStatLabel(name) }})
+                                </option>
+                            </select>
+                        </div>
                     </div>
                     <div class="btn-group">
                         <button class="btn btn-primary" @click="confirmMatches">确认匹配</button>
@@ -732,6 +739,28 @@
                 const statNames = computed(() => Object.keys(stats.value));
                 const matchedCount = computed(() => members.value.length - unmatched.value.length);
                 const unmatchedCount = computed(() => unmatched.value.length);
+
+                // 模糊匹配：子序列匹配（query 的字符按序出现在 name 中）或子串包含
+                const fuzzyMatch = (query, name) => {
+                    if (!query) return true;
+                    const q = String(query).toLowerCase().replace(/\s+/g, '');
+                    const n = String(name).toLowerCase().replace(/\s+/g, '');
+                    if (!q) return true;
+                    if (n.includes(q)) return true;
+                    let qi = 0;
+                    for (let i = 0; i < n.length && qi < q.length; i++) {
+                        if (n[i] === q[qi]) qi++;
+                    }
+                    return qi === q.length;
+                };
+
+                // 根据未匹配项的搜索关键字，从属性表返回模糊匹配结果（限前50条）
+                const fuzzyMatches = (item) => {
+                    const q = (item && (item.search || item.original || '')).trim();
+                    const all = Object.keys(stats.value);
+                    const filtered = all.filter(n => fuzzyMatch(q, n));
+                    return filtered.slice(0, 50);
+                };
                 
                 const getStatHp = (name) => {
                     const s = stats.value[name];
@@ -986,7 +1015,7 @@
                                 if (r.status !== 'not_found') {
                                     nameMap.value[r.original] = r.matched;
                                 } else {
-                                    unmatchedList.push({...r, manualMatch: ''});
+                                    unmatchedList.push({...r, manualMatch: '', search: ''});
                                 }
                             }
                             unmatched.value = unmatchedList;
@@ -1011,7 +1040,8 @@
                         if (json.success) {
                             unmatched.value = json.unmatched.map(u => ({
                                 ...u,
-                                manualMatch: ''
+                                manualMatch: '',
+                                search: ''
                             }));
                             nameMap.value = {};
                             for (const r of json.results) {
@@ -1277,8 +1307,11 @@
                 };
 
                 const parseManualMembers = () => {
-                    const lines = manualMembersText.value.split('\n').map(l => l.trim()).filter(l => l);
-                    lines.forEach(name => {
+                    // 支持多种分隔符：换行、逗号(中英文)、顿号、分号(中英文)、空格、斜杠、竖线
+                    const delimiters = /[\n,，、;；/／|\s]+/;
+                    const rawNames = manualMembersText.value.split(delimiters);
+                    const names = rawNames.map(l => l.trim()).filter(l => l);
+                    names.forEach(name => {
                         const n = name.trim();
                         if (!n) return;
                         if (manualMemberType.value === 'formal') {
@@ -1377,6 +1410,7 @@
                     bAssign, dAssign, sortedMembers, debugLog,
                     bPositions, dPositions,
                     statNames, matchedCount, unmatchedCount,
+                    fuzzyMatch, fuzzyMatches,
                     getStatHp, getStatTotal, getStatPower, getHp, getHpClass, getSortValue, getStatLabel,
                     teamCards, teamColors, currentSortLabel, selectedSwap, clickSwap,
                     sortBy, sortFields,
