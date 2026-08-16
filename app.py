@@ -206,13 +206,38 @@ def init_attendance_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             report_id INTEGER NOT NULL,
             member_name TEXT NOT NULL,
-            status TEXT DEFAULT '出席',      -- "出席" / "缺席" / "请假" / "候补上场"
+            status TEXT DEFAULT '出席',      -- "出席" / "缺席" / "请假" / "后援"
             points INTEGER DEFAULT 0,       -- 功勋积分
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (report_id) REFERENCES attendance_reports(id),
             UNIQUE(report_id, member_name)
         )
     ''')
+
+
+    # --- 迁移: assignments 支持同团多份(去 UNIQUE) + alliance/assign_date; attendance_reports + assignment_id ---
+    try:
+        c.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='assignments'")
+        row_sql = c.fetchone()
+        if row_sql and 'UNIQUE(section)' in (row_sql[0] or ''):
+            c.execute('ALTER TABLE assignments RENAME TO _assignments_old')
+            c.execute("CREATE TABLE assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, section TEXT NOT NULL, alliance TEXT DEFAULT '凌霄', assign_date TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            c.execute('INSERT INTO assignments (id, section, created_at) SELECT id, section, created_at FROM _assignments_old')
+            c.execute('DROP TABLE _assignments_old')
+            conn.commit()
+        for col in ('alliance', 'assign_date'):
+            try:
+                c.execute('ALTER TABLE assignments ADD COLUMN %s TEXT' % col)
+                conn.commit()
+            except Exception:
+                pass
+    except Exception as e:
+        print('[migrate assignments]', e)
+    try:
+        c.execute('ALTER TABLE attendance_reports ADD COLUMN assignment_id INTEGER')
+        conn.commit()
+    except Exception:
+        pass
 
     conn.commit()
     conn.close()
@@ -1523,6 +1548,8 @@ def export_api():
     data = request.json
     # 提前提取候补名单(后续 data 可能被回退解析结果覆盖)
     bench_list = data.get('bench_list', [])
+    alliance = (data.get('alliance', '凌霄') or '凌霄').strip()
+    assign_date = data.get('assign_date', '').strip()
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1626,10 +1653,27 @@ def export_api():
         6: {'members': ['D23','D24']},
     }
 
+    # 标题行: 同盟名 + 官渡 + section + 分工表 + 日期
+    import re as _re
+    if assign_date:
+        _m = _re.search(r'(\d{4})[^\d]*(\d{1,2})[^\d]*(\d{1,2})', assign_date)
+        if _m:
+            date_str = f'{int(_m.group(1))}年{int(_m.group(2))}月{int(_m.group(3))}日'
+        else:
+            date_str = assign_date
+    else:
+        _n = datetime.now()
+        date_str = f'{_n.year}年{_n.month}月{_n.day}日'
+    title_text = f'{alliance}官渡{section}分工表{date_str}'
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=8)
+    tcell = ws.cell(row=1, column=1, value=title_text)
+    tcell.font = Font(bold=True, size=14, color='1a1a2e')
+    tcell.alignment = Alignment(horizontal='center', vertical='center')
+
     # 写入表头(不含HP/排序值列)
     headers = ['队伍', 'B列(队长)', '分组', 'D列(队员)', '0-10分钟', '10-20分钟', '20分钟以后', '候补人员']
     for col, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=header)
+        cell = ws.cell(row=2, column=col, value=header)
         cell.font = header_font
         cell.alignment = center_align
         cell.fill = header_fill
@@ -1650,7 +1694,7 @@ def export_api():
             for c in range(c1, c2+1):
                 ws.cell(row=r, column=c).border = thin_border
 
-    row = 2
+    row = 3
     # 3-5队跨队合并追踪
     group_35_start_row = None
     group_35_end_row = None
@@ -1830,8 +1874,8 @@ def export_api():
         bench_text = '、\n'.join(bench_list)
         last_data_row = row - 1
         if last_data_row > 1:
-            ws.merge_cells(start_row=2, start_column=8, end_row=last_data_row, end_column=8)
-        cell_h = ws.cell(row=2, column=8, value=bench_text)
+            ws.merge_cells(start_row=3, start_column=8, end_row=last_data_row, end_column=8)
+        cell_h = ws.cell(row=3, column=8, value=bench_text)
         cell_h.alignment = Alignment(wrap_text=True, vertical='center')
         cell_h.font = Font(size=10, color='666666')
         apply_border_range(ws, 2, 8, last_data_row, 8)
@@ -2074,24 +2118,24 @@ def list_assignments():
 
 @app.route('/api/attendance/assignments/save', methods=['POST'])
 def save_assignment():
-    """保存当前分配结果为一条分配记录"""
+    """保存当前分配结果为一条分配记录(每次导出新建一份,支持按日期溯源)"""
     data = request.json or {}
     section = data.get('section', '').strip()
+    alliance = (data.get('alliance', '凌霄') or '凌霄').strip()
+    assign_date = data.get('assign_date', '').strip()
     members_list = data.get('members', [])
     if not section:
         return jsonify({'success': False, 'error': '请选择军团'})
     conn = sqlite3.connect(ATTENDANCE_DB)
     c = conn.cursor()
     try:
-        c.execute('INSERT OR IGNORE INTO assignments (section) VALUES (?)', (section,))
-        conn.commit()
-        aid = c.execute('SELECT id FROM assignments WHERE section=?', (section,)).fetchone()[0]
-        c.execute('DELETE FROM assignment_members WHERE assignment_id=?', (aid,))
+        c.execute('INSERT INTO assignments (section, alliance, assign_date) VALUES (?,?,?)', (section, alliance, assign_date))
+        aid = c.lastrowid
         for m in members_list:
             c.execute('INSERT INTO assignment_members (assignment_id, member_name, role, position) VALUES (?,?,?,?)',
                       (aid, m.get('name',''), m.get('role','正式'), m.get('position','')))
         conn.commit()
-        log_attendance('SAVE_ASSIGN', f'{section} 共{len(members_list)}人')
+        log_attendance('SAVE_ASSIGN', f'{alliance} {section} {assign_date} 共{len(members_list)}人')
         return jsonify({'success': True, 'assignment_id': aid})
     except Exception as e:
         conn.close()
@@ -2146,7 +2190,7 @@ def create_report():
             ocr_data = [{'member_name': n, 'points': 0} for n in ocr_data]
         else:
             # 前端传的是 {name, points},转成后端格式
-            ocr_data = [{'member_name': d.get('name', ''), 'points': d.get('points', 0)} for d in ocr_data]
+            ocr_data = [{'member_name': d.get('member_name') or d.get('name', ''), 'points': d.get('points', 0)} for d in ocr_data]
 
     if not section or not report_date:
         return jsonify({'success': False, 'error': '请填写军团和日期'})
@@ -2161,7 +2205,7 @@ def create_report():
         except Exception:
             pass
 
-        c.execute('INSERT INTO attendance_reports (section, report_date) VALUES (?, ?)', (section, report_date))
+        c.execute('INSERT INTO attendance_reports (section, report_date, assignment_id) VALUES (?, ?, ?)', (section, report_date, assignment_id))
         conn.commit()
         report_id = c.lastrowid
 
@@ -2184,7 +2228,7 @@ def create_report():
 
         for name, role in base_members.items():
             if name in ocr_set:
-                status = '候补上场' if role == '候补' else '出席'
+                status = '后援' if role == '候补' else '出席'
             else:
                 status = '缺席'
             pts = pts_map.get(name, 0)
@@ -2194,7 +2238,7 @@ def create_report():
         for name, pts in pts_map.items():
             if name not in base_members:
                 c.execute('INSERT INTO attendance_detail (report_id, member_name, status, points) VALUES (?,?,?,?)',
-                          (report_id, name, '候补上场', pts))
+                          (report_id, name, '后援', pts))
 
         conn.commit()
         log_attendance('CREATE_REPORT', f'{section} {report_date} ID:{report_id} 积分记录:{len(pts_map)}人')
@@ -2248,7 +2292,7 @@ def update_attendance_status():
     status = data.get('status', '').strip()
     if not all([report_id, member_name, status]):
         return jsonify({'success': False, 'error': '参数不完整'})
-    if status not in ('出席', '缺席', '请假', '候补上场'):
+    if status not in ('出席', '缺席', '请假', '后援'):
         return jsonify({'success': False, 'error': f'无效状态: {status}'})
     conn = sqlite3.connect(ATTENDANCE_DB)
     c = conn.cursor()
@@ -2271,7 +2315,7 @@ def batch_update_status():
     c = conn.cursor()
     for u in updates:
         status = u.get('status', '')
-        if status not in ('出席', '缺席', '请假', '候补上场'):
+        if status not in ('出席', '缺席', '请假', '后援'):
             continue
         c.execute('UPDATE attendance_detail SET status=?, updated_at=CURRENT_TIMESTAMP WHERE report_id=? AND member_name=?',
                   (status, report_id, u.get('member_name', '')))
@@ -2306,7 +2350,7 @@ def export_attendance():
     from io import BytesIO
     wb = openpyxl.Workbook()
 
-    status_order = {'出席': 0, '请假': 1, '候补上场': 2, '缺席': 3}
+    status_order = {'出席': 0, '请假': 1, '后援': 2, '缺席': 3}
     sorted_rows = sorted(rows, key=lambda r: (status_order.get(r['status'], 9), r['member_name']))
 
     ws = wb.active
@@ -2321,7 +2365,7 @@ def export_attendance():
     ws.append([])
     ws.append(['统计'])
     total_pts = sum(r['points'] or 0 for r in rows)
-    for st in ['出席', '请假', '候补上场', '缺席']:
+    for st in ['出席', '请假', '后援', '缺席']:
         cnt = sum(1 for r in rows if r['status'] == st)
         ws.append([st, cnt])
     ws.append(['功勋积分合计', total_pts])
