@@ -3,3 +3,6 @@ flask-cors==4.0.0
 openpyxl==3.1.2
 werkzeug==3.0.1
 gunicorn==21.2.0
+easyocr==1.7.1
+tencentcloud-sdk-python==3.1.126
+requests==2.34.0

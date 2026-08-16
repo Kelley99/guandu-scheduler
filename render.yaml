@@ -8,3 +8,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.18
+      # 在 Render Dashboard → 你的服务 → Environment 设置以下两项（不入库）:
+      #   TENCENT_SECRET_ID
+      #   TENCENT_SECRET_KEY
+# 强制触发 Render 部署
