@@ -22,8 +22,12 @@ import base64
 from tencentcloud.common import credential
 from tencentcloud.ocr.v20181119 import ocr_client, models
 
-TENCENT_SECRET_ID = 'AKID_REMOVED_FROM_HISTORY'
-TENCENT_SECRET_KEY = 'SECRET_KEY_REMOVED_FROM_HISTORY'
+# 密钥从 secret_config.py 读取（该文件被 .gitignore 排除）；无则读环境变量
+try:
+    from secret_config import TENCENT_SECRET_ID, TENCENT_SECRET_KEY
+except ImportError:
+    TENCENT_SECRET_ID = os.environ.get('TENCENT_SECRET_ID', '')
+    TENCENT_SECRET_KEY = os.environ.get('TENCENT_SECRET_KEY', '')
 
 def tencent_ocr(image_path):
     """

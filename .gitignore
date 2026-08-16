@@ -9,3 +9,9 @@ build/
 dist/
 *.spec
 *.egg-info/
+
+# 本地密钥配置（不入库）
+secret_config.py
+
+# 个人备忘（含密钥，不入库）
+TOOLS.md
