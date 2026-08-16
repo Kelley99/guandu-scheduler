@@ -1285,7 +1285,8 @@
 
                 // 名单编辑（输入阶段 A）
                 const startEditMember = (name, type) => {
-                    editingMemberIdx.value = members.value.indexOf(name);
+                    const list = type === 'bench' ? benchMembers : members;
+                    editingMemberIdx.value = list.value.indexOf(name);
                     editingMemberType.value = type;
                     editingMemberText.value = name;
                 };
@@ -1502,6 +1503,8 @@
                     nameMap, threshold, randomSeed, manualCaptains, matchDone, assignmentDone, loading, loadingText,
                     bAssign, dAssign, sortedMembers, debugLog,
                     bPositions, dPositions,
+                    editingMemberIdx, editingMemberText, editingMemberType,
+                    editMatchIdx, editMatchText,
                     statNames, matchedCount, unmatchedCount,
                     fuzzyMatch, fuzzyMatches,
                     getStatHp, getStatTotal, getStatPower, getHp, getHpClass, getSortValue, getStatLabel,
