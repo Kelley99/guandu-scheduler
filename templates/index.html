@@ -383,7 +383,7 @@
                             </div>
                             <textarea v-model="manualMembersText" rows="4"
                                       style="width:100%;padding:8px;border:1px solid #ffc107;border-radius:4px;font-size:14px"
-                                      placeholder="张三 李四 王五（支持换行、逗号、顿号、空格分隔）"></textarea>
+                                      placeholder="支持换行、逗号、分号、空格分隔（注意：「丶」是名字一部分，不会被拆分）"></textarea>
                             <div style="margin-top:8px;display:flex;gap:8px">
                                 <button class="btn btn-warning" @click="parseManualMembers">✅ 添加</button>
                                 <button class="btn btn-outline-danger" @click="clearAllMembers" style="font-size:13px;padding:4px 12px">🗑 清空名单</button>
@@ -405,10 +405,19 @@
                     <div v-if="members.length > 0">
                         <label style="color:#28a745;font-weight:bold">📋 正式成员 ({{ members.length }}人) — 参与排序分配</label>
                         <div class="members-grid">
-                            <div v-for="(m, idx) in members" :key="'m-'+idx" class="member-chip" style="background:#d4edda;border:1px solid #28a745">
-                                <span>{{ m }}</span>
-                                <span class="hp" :class="getHpClass(getSortValue(m))" v-if="getSortValue(m) > 0">{{ getSortValue(m) }}</span>
-                                <span class="hp hp-unknown" v-else>?</span>
+                            <div v-for="(m, idx) in members" :key="'m-'+idx" class="member-chip" style="background:#d4edda;border:1px solid #28a745;position:relative;padding-right:36px">
+                                <span v-if="editingMemberIdx===idx && editingMemberType==='formal'" style="display:flex;align-items:center;gap:4px;width:100%">
+                                    <input v-model="editingMemberText" @keyup.enter="confirmEditMember" @keyup.esc="cancelEditMember" style="flex:1;min-width:80px;padding:2px 4px;border:1px solid #28a745;border-radius:3px;font-size:13px">
+                                    <button @click="confirmEditMember" style="background:#28a745;color:#fff;border:none;border-radius:3px;padding:1px 6px;cursor:pointer;font-size:12px">✓</button>
+                                    <button @click="cancelEditMember" style="background:#ccc;color:#333;border:none;border-radius:3px;padding:1px 6px;cursor:pointer;font-size:12px">✕</button>
+                                </span>
+                                <template v-else>
+                                    <span>{{ m }}</span>
+                                    <span class="hp" :class="getHpClass(getSortValue(m))" v-if="getSortValue(m) > 0">{{ getSortValue(m) }}</span>
+                                    <span class="hp hp-unknown" v-else>?</span>
+                                    <button @click="startEditMember(m, 'formal')" title="编辑姓名" style="position:absolute;right:2px;top:2px;background:none;border:none;color:#888;cursor:pointer;font-size:11px;line-height:1;padding:2px">✎</button>
+                                    <button @click="deleteAttMember(m)" title="删除成员" style="position:absolute;right:2px;bottom:2px;background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;line-height:1;padding:2px">✕</button>
+                                </template>
                             </div>
                         </div>
                     </div>
@@ -464,6 +473,19 @@
                                     {{ name }} ({{ getStatLabel(name) }})
                                 </option>
                             </select>
+                            <button @click="startEditMatch(index)" title="手动输入/编辑匹配" style="background:#17a2b8;color:#fff;border:none;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:13px;white-space:nowrap">✎ 手动输入</button>
+                        </div>
+                        <!-- 匹配编辑弹层（仅当前行显示） -->
+                        <div v-if="editMatchIdx === index" style="margin-top:8px;padding:10px;background:#f0f8ff;border:1px solid #17a2b8;border-radius:6px">
+                            <div style="margin-bottom:6px;color:#17a2b8;font-size:13px">
+                                手动输入匹配：<b>{{ item.original }}</b> →
+                            </div>
+                            <input v-model="editMatchText" placeholder="输入属性表中的完整姓名" @keyup.enter="confirmEditMatch" @keyup.esc="cancelEditMatch" style="flex:1;width:100%;padding:6px 8px;border:1px solid #17a2b8;border-radius:4px;font-size:13px;margin-bottom:6px">
+                            <div style="font-size:12px;color:#888;margin-bottom:8px">提示：在上方搜索框输入关键字，下拉框会实时过滤，选中后此处自动填入</div>
+                            <div style="display:flex;gap:6px">
+                                <button @click="confirmEditMatch" style="background:#17a2b8;color:#fff;border:none;border-radius:4px;padding:6px 14px;cursor:pointer;font-size:13px">✓ 确认</button>
+                                <button @click="cancelEditMatch" style="background:#ccc;color:#333;border:none;border-radius:4px;padding:6px 14px;cursor:pointer;font-size:13px">✕ 取消</button>
+                            </div>
                         </div>
                     </div>
                     <div class="btn-group">
@@ -593,8 +615,17 @@
             <div class="card" v-if="benchMembers.length > 0">
                 <div class="card-header">候补名单 ({{ benchMembers.length }}人)</div>
                 <div class="members-grid">
-                    <div v-for="(m, idx) in benchMembers" :key="idx" class="member-chip">
-                        <span>{{ m }}</span>
+                    <div v-for="(m, idx) in benchMembers" :key="idx" class="member-chip" style="position:relative;padding-right:36px">
+                        <span v-if="editingMemberIdx===idx && editingMemberType==='bench'" style="display:flex;align-items:center;gap:4px;width:100%">
+                            <input v-model="editingMemberText" @keyup.enter="confirmEditMember" @keyup.esc="cancelEditMember" style="flex:1;min-width:80px;padding:2px 4px;border:1px solid #6c757d;border-radius:3px;font-size:13px">
+                            <button @click="confirmEditMember" style="background:#6c757d;color:#fff;border:none;border-radius:3px;padding:1px 6px;cursor:pointer;font-size:12px">✓</button>
+                            <button @click="cancelEditMember" style="background:#ccc;color:#333;border:none;border-radius:3px;padding:1px 6px;cursor:pointer;font-size:12px">✕</button>
+                        </span>
+                        <template v-else>
+                            <span>{{ m }}</span>
+                            <button @click="startEditMember(m, 'bench')" title="编辑姓名" style="position:absolute;right:2px;top:2px;background:none;border:none;color:#888;cursor:pointer;font-size:11px;line-height:1;padding:2px">✎</button>
+                            <button @click="deleteAttMember(m)" title="删除成员" style="position:absolute;right:2px;bottom:2px;background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;line-height:1;padding:2px">✕</button>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -632,6 +663,13 @@
                 const ocrInput = ref(null);
                 const ocrEditingIndex = ref(-1);
                 const ocrEditingText = ref('');
+                // 名单编辑（输入阶段 A）
+                const editingMemberIdx = ref(-1);
+                const editingMemberText = ref('');
+                const editingMemberType = ref('formal');
+                // 匹配编辑（匹配后阶段 B）
+                const editMatchIdx = ref(-1);
+                const editMatchText = ref('');
                 const teamsData = ref({});
                 const guanduFilename = ref('');
                 const unmatched = ref([]);
@@ -1245,6 +1283,60 @@
                     attMembers.value = attMembers.value.filter(m => m.name !== name);
                 };
 
+                // 名单编辑（输入阶段 A）
+                const startEditMember = (name, type) => {
+                    editingMemberIdx.value = members.value.indexOf(name);
+                    editingMemberType.value = type;
+                    editingMemberText.value = name;
+                };
+                const confirmEditMember = () => {
+                    const newName = editingMemberText.value.trim();
+                    if (!newName) { cancelEditMember(); return; }
+                    const type = editingMemberType.value;
+                    const list = type === 'bench' ? benchMembers : members;
+                    const idx = editingMemberIdx.value;
+                    if (idx >= 0 && idx < list.value.length) {
+                        const oldName = list.value[idx];
+                        list.value[idx] = newName;
+                        const att = attMembers.value.find(a => a.name === oldName);
+                        if (att) att.name = newName;
+                        if (nameMap.value[oldName] !== undefined) {
+                            nameMap.value[newName] = nameMap.value[oldName];
+                            delete nameMap.value[oldName];
+                        }
+                        matchDone.value = false;
+                        unmatched.value = [];
+                    }
+                    cancelEditMember();
+                };
+                const cancelEditMember = () => {
+                    editingMemberIdx.value = -1;
+                    editingMemberText.value = '';
+                    editingMemberType.value = 'formal';
+                };
+
+                // 匹配编辑（匹配后阶段 B）
+                const startEditMatch = (index) => {
+                    editMatchIdx.value = index;
+                    editMatchText.value = unmatched.value[index].manualMatch || '';
+                };
+                const confirmEditMatch = () => {
+                    const idx = editMatchIdx.value;
+                    if (idx < 0) return;
+                    const newMatch = editMatchText.value.trim();
+                    unmatched.value[idx].manualMatch = newMatch;
+                    if (newMatch) {
+                        nameMap.value[unmatched.value[idx].original] = newMatch;
+                    } else {
+                        delete nameMap.value[unmatched.value[idx].original];
+                    }
+                    cancelEditMatch();
+                };
+                const cancelEditMatch = () => {
+                    editMatchIdx.value = -1;
+                    editMatchText.value = '';
+                };
+
                 const ocrMembers = async (event) => {
                     const file = event.target.files[0];
                     if (!file) return;
@@ -1307,8 +1399,9 @@
                 };
 
                 const parseManualMembers = () => {
-                    // 支持多种分隔符：换行、逗号(中英文)、顿号、分号(中英文)、空格、斜杠、竖线
-                    const delimiters = /[\n,，、;；/／|\s]+/;
+                    // 支持多种分隔符：换行、逗号(中/英文)、分号(中/英文)、空格、斜杠、竖线
+                    // 注意：「丶」(U+35B4)是名字组成部分，不作分隔符
+                    const delimiters = /[\n,，;；/／|\s]+/;
                     const rawNames = manualMembersText.value.split(delimiters);
                     const names = rawNames.map(l => l.trim()).filter(l => l);
                     names.forEach(name => {
@@ -1416,6 +1509,8 @@
                     sortBy, sortFields,
                     selectSection, reloadStats, uploadStatsFile, uploadGuanduFile,
                     matchMembers, skipAll, confirmMatches,
+                    startEditMember, confirmEditMember, cancelEditMember,
+                    startEditMatch, confirmEditMatch, cancelEditMatch,
                     runAssignment, getRank, getTeam, exportExcel, resetAll
                 };
             }
